@@ -30,6 +30,7 @@ It uses Instagram's real website and normal Instagram login flow. It is not an o
 - Hides Home Feed articles and post tiles, and blocks Feed post, Explore, and generic Reels destinations.
 - Preserves individual `/reel/...` viewing used by Reels shared in DMs; the generic `/reels/...` surface remains blocked.
 - Offers persisted System default, Light, and Dark appearance modes for the native app shell and best-effort WebView darkening.
+- Tracks local App Time for today, yesterday, and the last 7 days, with a local reset option.
 - Uses Android's system document picker for file attachments supported by Instagram Web.
 - Provides Refresh and Clear Instagram Session actions.
 - Handles loading states, retryable page errors, external links, SSL errors, and automatic WebView renderer recovery.
@@ -48,6 +49,7 @@ The app is a native Kotlin Android shell around Instagram's website:
 - `InstagramUiShield` uses persistent CSS to hide Home Feed articles and post links while preserving the Story row; it does not repeatedly mutate Feed nodes. Its SPA route guard preserves DM-originated individual Reel viewing and blocks generic Reels transitions.
 - `DmReelNavigationGuard` tracks only the active WebView's current DM-originated Reel session and returns generic `/reels/...` transitions to the most recently allowed `/reel/...` item. The page-level transient marker is stored in WebView `sessionStorage` and cleared when leaving the individual Reel flow; it contains only route state, not account data.
 - Appearance selection is stored locally as a single preference; Compose system bars and WebView darkening follow the selected mode where supported by the installed Android System WebView.
+- `AppTimeTracker` records foreground time using Android lifecycle callbacks and stores only daily usage totals in local app preferences; no usage data leaves the device.
 - `InstagramWebChromeClient` connects web file selection to Android's system document picker.
 
 There is no app backend and no JavaScript-to-Android bridge.
@@ -424,6 +426,8 @@ Use this checklist after a build or after changing WebView behavior.
 - [ ] Direct blocked URLs and single-page-app route changes are handled.
 - [ ] Instagram's own back control does not expose Feed posts; Android Back skips blocked history entries.
 - [ ] System default, Light, and Dark appearance modes persist after restarting the app.
+- [ ] App Time records foreground usage and shows today, yesterday, and last 7 days.
+- [ ] App Time reset clears stored usage and continues tracking if the app remains open.
 - [ ] External HTTP(S) links open outside the app WebView.
 - [ ] Rotation, background/foreground, and network loss/recovery are handled.
 - [ ] SSL errors are rejected.
@@ -448,6 +452,7 @@ Use this checklist after a build or after changing WebView behavior.
 - No credential inspection or password storage.
 - No custom Instagram login screen.
 - No backend, proxy, or analytics.
+- No App Time data is uploaded or shared; usage totals remain local to the device.
 - No unnecessary camera, microphone, contacts, storage, or location permissions.
 
 ## Disclaimer

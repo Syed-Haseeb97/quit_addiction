@@ -26,6 +26,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 @Composable
 fun InstagramWebView(
     modifier: Modifier = Modifier,
+    initialWebViewState: Bundle? = null,
     reloadToken: Int = 0,
     onWebViewReady: (WebView) -> Unit,
     onLoadingChanged: (Boolean) -> Unit,
@@ -103,7 +104,7 @@ fun InstagramWebView(
                     allowContentAccess = true
                     mediaPlaybackRequiresUserGesture = true
                     cacheMode = WebSettings.LOAD_DEFAULT
-                    // Intentionally retain the current WebView-provided UA.
+                    // Keep the current WebView-provided User-Agent.
                     // Do not hard-code an old Chrome UA.
                 }
 
@@ -120,7 +121,9 @@ fun InstagramWebView(
 
                 webChromeClient = InstagramWebChromeClient(::launchFilePicker)
 
-                if (savedInstanceStateForWebView == null) {
+                if (initialWebViewState != null) {
+                    restoreState(initialWebViewState)
+                } else {
                     loadUrl(InstagramRoutes.DM_INBOX)
                 }
 
@@ -147,10 +150,6 @@ fun InstagramWebView(
         }
     }
 }
-
-// Kept as a simple process-local hook; MainActivity does not need to persist
-// arbitrary WebView state or credentials.
-private var savedInstanceStateForWebView: Bundle? = null
 
 fun clearInstagramSession(webView: WebView?, onComplete: () -> Unit) {
     if (webView == null) {

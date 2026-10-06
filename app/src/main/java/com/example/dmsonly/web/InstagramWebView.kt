@@ -161,6 +161,7 @@ fun clearInstagramSession(webView: WebView?, onComplete: () -> Unit) {
     webView.clearHistory()
     webView.clearCache(true)
     webView.clearFormData()
+    WebStorage.getInstance().deleteAllData()
 
     CookieManager.getInstance().removeAllCookies {
         CookieManager.getInstance().flush()

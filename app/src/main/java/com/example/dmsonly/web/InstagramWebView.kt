@@ -87,10 +87,8 @@ fun InstagramWebView(
                         // Keep the WebView-provided User-Agent; never hard-code an old UA.
                     }
 
-                    CookieManager.getInstance().apply {
-                        setAcceptCookie(true)
-                        setAcceptThirdPartyCookies(this@apply, true)
-                    }
+                    CookieManager.getInstance().setAcceptCookie(true)
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
                     webViewClient = InstagramWebViewClient(
                         onLoadingChanged = latestOnLoading,
@@ -121,8 +119,6 @@ fun InstagramWebView(
             },
             onRelease = {
                 it.stopLoading()
-                it.webChromeClient = null
-                it.webViewClient = null
                 it.destroy()
             }
         )

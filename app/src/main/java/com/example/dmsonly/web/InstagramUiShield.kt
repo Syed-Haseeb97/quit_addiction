@@ -6,7 +6,7 @@ import android.webkit.WebView
  * DOM/CSS shielding is deliberately isolated here.
  *
  * URL-level blocking in InstagramRoutes/WebViewClient remains authoritative;
- * this shield removes Feed/Explore/Reels controls from Instagram's UI.
+ * this shield removes Feed/Explore/Reels controls without mutating Feed nodes.
  */
 object InstagramUiShield {
 
@@ -28,7 +28,7 @@ object InstagramUiShield {
             """a[aria-label="Explore"]""",
             """a[aria-label="Search and explore"]""",
             """a[aria-label="Reels"]"""
-        ).joinToString(",\n") + " { display: none !important; }"
+        ).joinToString(",\n") + " { visibility: hidden !important; pointer-events: none !important; }"
 
         val segments = InstagramRoutes.BLOCKED_FIRST_SEGMENTS
             .joinToString(",") { "\"" + it + "\"" }
@@ -66,18 +66,12 @@ object InstagramUiShield {
   var lastRoutePath = location.pathname;
   var dmReelContextActive = false;
   var lastDmReelUrl = null;
-  var REEL_CONTEXT_KEY = "dms-only-dm-reel-context";
-  var LAST_REEL_URL_KEY = "dms-only-last-dm-reel-url";
 
   try {
-    dmReelContextActive = sessionStorage.getItem(REEL_CONTEXT_KEY) === "1";
-    lastDmReelUrl = sessionStorage.getItem(LAST_REEL_URL_KEY);
     var referrer = new URL(document.referrer);
     if (isDirectPath(referrer.pathname) && isIndividualReelPath(lastRoutePath)) {
       dmReelContextActive = true;
       lastDmReelUrl = location.href;
-      sessionStorage.setItem(REEL_CONTEXT_KEY, "1");
-      sessionStorage.setItem(LAST_REEL_URL_KEY, lastDmReelUrl);
     }
   } catch (e) {}
 
@@ -113,25 +107,16 @@ object InstagramUiShield {
   function clearDmReelContext() {
     dmReelContextActive = false;
     lastDmReelUrl = null;
-    try {
-      sessionStorage.removeItem(REEL_CONTEXT_KEY);
-      sessionStorage.removeItem(LAST_REEL_URL_KEY);
-    } catch (e) {}
   }
 
   function rememberDmReelUrl(url) {
     lastDmReelUrl = url;
-    try {
-      sessionStorage.setItem(REEL_CONTEXT_KEY, "1");
-      sessionStorage.setItem(LAST_REEL_URL_KEY, url);
-    } catch (e) {}
   }
 
   function routeTransitionBlocked(raw) {
     try {
       var target = new URL(String(raw), location.href);
       if (FEED_HOSTS.indexOf(target.hostname.toLowerCase()) === -1) return false;
-
       if (isDirectPath(lastRoutePath) && isIndividualReelPath(target.pathname)) {
         dmReelContextActive = true;
         rememberDmReelUrl(target.href);
@@ -188,11 +173,8 @@ object InstagramUiShield {
     installStyle();
     var homeValue = isHomePath() ? "true" : null;
     if (document.documentElement.getAttribute("data-dms-only-home") !== homeValue) {
-      if (homeValue) {
-        document.documentElement.setAttribute("data-dms-only-home", homeValue);
-      } else {
-        document.documentElement.removeAttribute("data-dms-only-home");
-      }
+      if (homeValue) document.documentElement.setAttribute("data-dms-only-home", homeValue);
+      else document.documentElement.removeAttribute("data-dms-only-home");
     }
     guardLocation();
   }
@@ -206,6 +188,16 @@ object InstagramUiShield {
     else goInbox();
   }
 
+  ["pushState", "replaceState"].forEach(function (name) {
+    var original = history[name];
+    history[name] = function (state, title, url) {
+      if (url !== undefined && url !== null && routeTransitionBlocked(url)) return;
+      var result = original.apply(this, arguments);
+      queueMicrotask(applyShield);
+      return result;
+    };
+  });
+
   document.addEventListener("click", function (event) {
     var target = event.target;
     var anchor = target && target.closest ? target.closest("a[href]") : null;
@@ -216,25 +208,14 @@ object InstagramUiShield {
     }
   }, true);
 
-  ["pushState", "replaceState"].forEach(function (name) {
-    var original = history[name];
-    history[name] = function (state, title, url) {
-      if (url !== undefined && url !== null && routeTransitionBlocked(url)) {
-        return;
-      }
-      var result = original.apply(this, arguments);
-      queueMicrotask(applyShield);
-      return result;
-    };
-  });
+  window.addEventListener("popstate", applyShield);
+  window.addEventListener("hashchange", applyShield);
 
   function guardLocation() {
     if (!isBlockedUrl(location.href)) return;
     if (dmReelContextActive && isGenericReelsPath(location.pathname)) returnToDmReel();
     else goInbox();
   }
-
-  window.addEventListener("popstate", applyShield);
 
   function installStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -248,7 +229,6 @@ object InstagramUiShield {
 
   window.__DM_ONLY_APPLY__ = applyShield;
   window.__DM_ONLY_SHIELD__ = true;
-
   applyShield();
 })();
 """

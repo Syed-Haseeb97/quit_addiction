@@ -143,7 +143,16 @@ private fun DMsOnlyApp(
     var showMenu by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
     var showAppearanceDialog by remember { mutableStateOf(false) }
+    var showWellbeingDialog by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
+    var now by remember { mutableStateOf(LocalTime.now()) }
+    LaunchedEffect(wellbeingSettings.quietHoursEnabled, wellbeingSettings.quietHoursStart, wellbeingSettings.quietHoursEnd) {
+        while (true) {
+            now = LocalTime.now()
+            delay(30_000)
+        }
+    }
+    val quietHoursActive = wellbeingSettings.isQuietHoursActive(now)
     val systemDarkTheme = isSystemInDarkTheme()
     val darkWebAppearance = appearanceMode.resolveDarkTheme(systemDarkTheme)
 
@@ -177,6 +186,13 @@ private fun DMsOnlyApp(
                                 }
                             )
                             DropdownMenuItem(
+                                text = { Text("Focus & privacy") },
+                                onClick = {
+                                    showMenu = false
+                                    showWellbeingDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Clear Instagram session") },
                                 onClick = {
                                     showMenu = false
@@ -195,21 +211,30 @@ private fun DMsOnlyApp(
                 .padding(padding)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                InstagramWebView(
-                    modifier = Modifier.fillMaxSize(),
-                    initialWebViewState = initialWebViewState,
-                    reloadToken = reloadToken,
-                    darkAppearance = darkWebAppearance,
-                    onWebViewReady = {
-                        webView = it
-                        onWebViewReady(it)
-                    },
-                    onLoadingChanged = { isLoading = it },
-                    onError = { errorMessage = it },
-                    onRecovered = { errorMessage = null }
-                )
+                if (quietHoursActive) {
+                    QuietHoursOverlay(
+                        start = wellbeingSettings.quietHoursStart,
+                        end = wellbeingSettings.quietHoursEnd
+                    )
+                } else {
+                    InstagramWebView(
+                        modifier = Modifier.fillMaxSize(),
+                        initialWebViewState = initialWebViewState,
+                        reloadToken = reloadToken,
+                        darkAppearance = darkWebAppearance,
+                        dopamineFreeUi = wellbeingSettings.dopamineFreeUi,
+                        ghostMode = wellbeingSettings.ghostMode,
+                        onWebViewReady = {
+                            webView = it
+                            onWebViewReady(it)
+                        },
+                        onLoadingChanged = { isLoading = it },
+                        onError = { errorMessage = it },
+                        onRecovered = { errorMessage = null }
+                    )
 
-                if (isLoading) {
+                }
+                if (isLoading && !quietHoursActive) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.TopCenter)
                     )
@@ -265,6 +290,14 @@ private fun DMsOnlyApp(
         )
     }
 
+    if (showWellbeingDialog) {
+        WellbeingDialog(
+            settings = wellbeingSettings,
+            onSettingsChange = onWellbeingSettingsChange,
+            onDismiss = { showWellbeingDialog = false }
+        )
+    }
+
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
@@ -295,6 +328,105 @@ private fun DMsOnlyApp(
             }
         )
     }
+}
+
+@Composable
+private fun QuietHoursOverlay(start: String, end: String) {
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Quiet Hours active")
+                Text("Instagram is unavailable from " + start + " to " + end + ".")
+                Text("Come back when the schedule ends.")
+            }
+        }
+    }
+}
+
+@Composable
+private fun WellbeingDialog(
+    settings: WellbeingSettings,
+    onSettingsChange: (WellbeingSettings) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var start by rememberSaveable(settings.quietHoursStart) { mutableStateOf(settings.quietHoursStart) }
+    var end by rememberSaveable(settings.quietHoursEnd) { mutableStateOf(settings.quietHoursEnd) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Focus & privacy") },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Quiet Hours")
+                        Text("Block Instagram during a schedule.")
+                    }
+                    Switch(
+                        checked = settings.quietHoursEnabled,
+                        onCheckedChange = {
+                            onSettingsChange(settings.copy(
+                                quietHoursEnabled = it,
+                                quietHoursStart = WellbeingSettings.normalizeTime(start) ?: settings.quietHoursStart,
+                                quietHoursEnd = WellbeingSettings.normalizeTime(end) ?: settings.quietHoursEnd
+                            ))
+                        }
+                    )
+                }
+                if (settings.quietHoursEnabled) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = start,
+                            onValueChange = { start = it },
+                            label = { Text("Start HH:mm") },
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = end,
+                            onValueChange = { end = it },
+                            label = { Text("End HH:mm") },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Dopamine-Free UI")
+                        Text("Neutralize engagement and notification badges; keep DMs and Stories.")
+                    }
+                    Switch(
+                        checked = settings.dopamineFreeUi,
+                        onCheckedChange = { onSettingsChange(settings.copy(dopamineFreeUi = it)) }
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Ghost Mode (experimental)")
+                        Text("Attempt to suppress Seen/Typing requests. Not guaranteed by Instagram Web.")
+                    }
+                    Switch(
+                        checked = settings.ghostMode,
+                        onCheckedChange = { onSettingsChange(settings.copy(ghostMode = it)) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val normalizedStart = WellbeingSettings.normalizeTime(start)
+                val normalizedEnd = WellbeingSettings.normalizeTime(end)
+                if (normalizedStart != null && normalizedEnd != null) {
+                    onSettingsChange(settings.copy(
+                        quietHoursStart = normalizedStart,
+                        quietHoursEnd = normalizedEnd
+                    ))
+                    onDismiss()
+                }
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 private fun AppearanceMode.label(): String = when (this) {

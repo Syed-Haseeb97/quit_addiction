@@ -41,23 +41,6 @@ class InstagramWebViewClient(
         }
     }
 
-    @Deprecated("Use the request-based callback on modern Android.")
-    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return true
-
-        if (!InstagramRoutes.isInstagramHost(uri)) {
-            if (uri.scheme == "http" || uri.scheme == "https") openExternal(view, uri)
-            return true
-        }
-
-        if (InstagramRoutes.isBlocked(uri)) {
-            view.loadUrl(InstagramRoutes.DM_INBOX)
-            return true
-        }
-
-        return false
-    }
-
     override fun onPageStarted(
         view: WebView,
         url: String?,
@@ -86,18 +69,6 @@ class InstagramWebViewClient(
         super.onReceivedError(view, request, error)
     }
 
-    @Deprecated("Use the request-based callback on modern Android.")
-    override fun onReceivedError(
-        view: WebView,
-        errorCode: Int,
-        description: String?,
-        failingUrl: String?
-    ) {
-        onLoadingChanged(false)
-        onMainFrameError("Unable to connect to Instagram")
-        super.onReceivedError(view, errorCode, description, failingUrl)
-    }
-
     override fun onReceivedHttpError(
         view: WebView,
         request: WebResourceRequest,
@@ -117,9 +88,13 @@ class InstagramWebViewClient(
         handler: SslErrorHandler,
         error: SslError
     ) {
+        // Always reject certificate errors. Never call handler.proceed().
         handler.cancel()
-        onLoadingChanged(false)
-        onMainFrameError("Secure connection to Instagram could not be verified")
+
+        if (error.url == view.url) {
+            onLoadingChanged(false)
+            onMainFrameError("Secure connection to Instagram could not be verified")
+        }
     }
 
     override fun onRenderProcessGone(

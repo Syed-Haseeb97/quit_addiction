@@ -31,6 +31,10 @@ class InstagramWebChromeClient(
         callback.onReceiveValue(FileChooserParams.parseResult(resultCode, data))
     }
 
+    fun cancelPendingFileChooser() {
+        cancelPending()
+    }
+
     private fun cancelPending() {
         pendingCallback?.onReceiveValue(null)
         pendingCallback = null

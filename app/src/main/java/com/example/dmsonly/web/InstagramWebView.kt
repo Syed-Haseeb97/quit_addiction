@@ -1,6 +1,8 @@
 package com.example.dmsonly.web
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.graphics.Color
 import android.os.Bundle
 import android.view.ViewGroup
@@ -18,6 +20,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -52,7 +55,7 @@ fun InstagramWebView(
         chromeClient.deliverFileChooserResult(result.resultCode, result.data)
     }
 
-    androidx.compose.runtime.SideEffect {
+    SideEffect {
         chromeClient.launchChooser = { intent -> chooserLauncher.launch(intent) }
     }
 
@@ -71,6 +74,10 @@ fun InstagramWebView(
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
 
+                    if ((context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                        WebView.setWebContentsDebuggingEnabled(true)
+                    }
+
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
@@ -83,11 +90,14 @@ fun InstagramWebView(
                         allowContentAccess = false
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         mediaPlaybackRequiresUserGesture = true
+                        setGeolocationEnabled(false)
                         cacheMode = WebSettings.LOAD_DEFAULT
-                        // Keep the WebView-provided User-Agent; never hard-code an old UA.
+                        // Keep the installed WebView's current User-Agent; never hard-code an old UA.
                     }
 
                     CookieManager.getInstance().setAcceptCookie(true)
+                    // Instagram login/session behavior can depend on third-party cookies.
+                    // Keep this enabled for compatibility; no credentials are stored by the app.
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
                     webViewClient = InstagramWebViewClient(
@@ -153,6 +163,7 @@ fun clearInstagramSession(webView: WebView?, onComplete: () -> Unit) {
     }
 
     webView.stopLoading()
+    webView.loadUrl("about:blank")
     webView.clearHistory()
     webView.clearCache(true)
     webView.clearFormData()

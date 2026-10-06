@@ -10,15 +10,11 @@ object InstagramBackNavigation {
         if (InstagramRoutes.isInboxUrl(webView.url)) return false
 
         val history = webView.copyBackForwardList()
-        var target = history.currentIndex - 1
-
-        while (target >= 0) {
-            val url = history.getItemAtIndex(target).url
-            if (!InstagramRoutes.isBlocked(url)) {
-                webView.goBackOrForward(target - history.currentIndex)
-                return true
-            }
-            target--
+        val urls = (0..history.currentIndex).map { history.getItemAtIndex(it).url }
+        val target = previousAllowedHistoryIndex(urls, history.currentIndex)
+        if (target != null) {
+            webView.goBackOrForward(target - history.currentIndex)
+            return true
         }
 
         if (!InstagramRoutes.isAuthFlowUrl(webView.url)) {
@@ -27,5 +23,12 @@ object InstagramBackNavigation {
         }
 
         return false
+    }
+
+    internal fun previousAllowedHistoryIndex(urls: List<String>, currentIndex: Int): Int? {
+        for (index in currentIndex - 1 downTo 0) {
+            if (!InstagramRoutes.isBlocked(urls[index])) return index
+        }
+        return null
     }
 }

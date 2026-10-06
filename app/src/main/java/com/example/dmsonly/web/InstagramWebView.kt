@@ -29,6 +29,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.ComponentActivity
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import androidx.webkit.WebSettingsCompat
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -36,6 +37,7 @@ fun InstagramWebView(
     modifier: Modifier = Modifier,
     initialWebViewState: Bundle? = null,
     reloadToken: Int = 0,
+    darkAppearance: Boolean,
     onWebViewReady: (WebView) -> Unit,
     onLoadingChanged: (Boolean) -> Unit,
     onError: (String) -> Unit,
@@ -61,6 +63,7 @@ fun InstagramWebView(
 
     SideEffect {
         chromeClient.launchChooser = { intent -> chooserLauncher.launch(intent) }
+        webView?.let { applyWebAppearance(it, darkAppearance) }
     }
 
     DisposableEffect(lifecycleOwner, webView) {
@@ -99,6 +102,8 @@ fun InstagramWebView(
                     if ((context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
                         WebView.setWebContentsDebuggingEnabled(true)
                     }
+
+                    applyWebAppearance(this, darkAppearance)
 
                     settings.apply {
                         javaScriptEnabled = true
@@ -168,6 +173,18 @@ fun InstagramWebView(
             }
             webView = null
         }
+    }
+}
+
+private fun applyWebAppearance(webView: WebView, darkAppearance: Boolean) {
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+        WebSettingsCompat.setForceDark(
+            webView.settings,
+            if (darkAppearance) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
+        )
+    }
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+        WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, darkAppearance)
     }
 }
 

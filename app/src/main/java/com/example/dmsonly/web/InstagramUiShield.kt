@@ -18,12 +18,11 @@ object InstagramUiShield {
 
     private fun buildScript(): String {
         val css = listOf(
-            """a[href="/"]""",
-            """a[href^="/?"]""",
-            """a[href="https://www.instagram.com/"]""",
             """a[href^="/explore"]""",
             """a[href^="/reels"]""",
-            """a[aria-label="Home"]""",
+            """a[href^="/feed"]""",
+            """a[href^="/p/"]""",
+            """a[href^="/tv/"]""",
             """a[aria-label="Explore"]""",
             """a[aria-label="Search and explore"]""",
             """a[aria-label="Reels"]"""
@@ -61,11 +60,12 @@ object InstagramUiShield {
   var BLOCKED_FIRST_SEGMENTS = [__BLOCKED_SEGMENTS__];
   var FEED_HOSTS = [__FEED_HOSTS__];
   var STYLE_ID = "dms-only-shield-style";
+  var HIDDEN_ATTRIBUTE = "data-dms-only-feed-hidden";
   var CSS = __CSS__;
 
   function isBlockedPath(path) {
     var parts = String(path).split("/").filter(function (s) { return s.length > 0; });
-    if (parts.length === 0) return true;
+    if (parts.length === 0) return false;
     var first = parts[0];
     try { first = decodeURIComponent(first); } catch (e) {}
     return BLOCKED_FIRST_SEGMENTS.indexOf(first.toLowerCase()) !== -1;
@@ -78,6 +78,37 @@ object InstagramUiShield {
     } catch (e) {
       return false;
     }
+  }
+
+  function isHomePath() {
+    return FEED_HOSTS.indexOf(location.hostname.toLowerCase()) !== -1 &&
+      (location.pathname === "/" || location.pathname === "");
+  }
+
+  function hideFeedPosts() {
+    if (isHomePath()) {
+      document.querySelectorAll("main article, main [role='article']").forEach(function (post) {
+        post.setAttribute(HIDDEN_ATTRIBUTE, "true");
+        post.style.setProperty("display", "none", "important");
+      });
+    }
+
+    document.querySelectorAll("a[href^='/p/'], a[href^='/tv/']").forEach(function (link) {
+      link.setAttribute(HIDDEN_ATTRIBUTE, "true");
+      link.style.setProperty("display", "none", "important");
+      var post = link.closest("article, [role='article']");
+      if (post) {
+        post.setAttribute(HIDDEN_ATTRIBUTE, "true");
+        post.style.setProperty("display", "none", "important");
+      }
+    });
+  }
+
+  function applyShield() {
+    ensureObserver();
+    installStyle();
+    hideFeedPosts();
+    guardLocation();
   }
 
   function goInbox() {
@@ -102,7 +133,9 @@ object InstagramUiShield {
         goInbox();
         return;
       }
-      return original.apply(this, arguments);
+      var result = original.apply(this, arguments);
+      queueMicrotask(applyShield);
+      return result;
     };
   });
 
@@ -110,7 +143,7 @@ object InstagramUiShield {
     if (isBlockedUrl(location.href)) goInbox();
   }
 
-  window.addEventListener("popstate", guardLocation);
+  window.addEventListener("popstate", applyShield);
 
   var pending = false;
 
@@ -128,24 +161,22 @@ object InstagramUiShield {
   function scheduleStyle() {
     if (pending) return;
     pending = true;
-    setTimeout(installStyle, 100);
+    setTimeout(applyShield, 100);
   }
 
-  if (document.documentElement) {
-    new MutationObserver(scheduleStyle).observe(
+  function ensureObserver() {
+    if (!document.documentElement || window.__DM_ONLY_OBSERVER__) return;
+    window.__DM_ONLY_OBSERVER__ = new MutationObserver(scheduleStyle);
+    window.__DM_ONLY_OBSERVER__.observe(
       document.documentElement,
       { childList: true, subtree: true }
     );
   }
 
-  window.__DM_ONLY_APPLY__ = function () {
-    installStyle();
-    guardLocation();
-  };
+  window.__DM_ONLY_APPLY__ = applyShield;
   window.__DM_ONLY_SHIELD__ = true;
 
-  installStyle();
-  guardLocation();
+  applyShield();
 })();
 """
 }

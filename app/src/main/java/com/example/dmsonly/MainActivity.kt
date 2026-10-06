@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -18,6 +22,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,14 +34,18 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.dmsonly.ui.theme.AppearanceMode
 import com.example.dmsonly.ui.theme.DMsOnlyTheme
 import com.example.dmsonly.web.InstagramBackNavigation
 import com.example.dmsonly.web.InstagramWebView
 import com.example.dmsonly.web.clearInstagramSession
 
 private const val WEBVIEW_STATE_KEY = "webview_state"
+private const val APPEARANCE_PREFERENCES = "appearance_preferences"
+private const val APPEARANCE_MODE_KEY = "appearance_mode"
 
 class MainActivity : ComponentActivity() {
 
@@ -69,9 +78,25 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            DMsOnlyTheme {
+            var appearanceMode by remember {
+                mutableStateOf(
+                    AppearanceMode.fromStoredValue(
+                        getSharedPreferences(APPEARANCE_PREFERENCES, MODE_PRIVATE)
+                            .getString(APPEARANCE_MODE_KEY, null)
+                    )
+                )
+            }
+            DMsOnlyTheme(appearanceMode = appearanceMode) {
                 DMsOnlyApp(
                     initialWebViewState = restoredWebViewState,
+                    appearanceMode = appearanceMode,
+                    onAppearanceModeChange = { mode ->
+                        appearanceMode = mode
+                        getSharedPreferences(APPEARANCE_PREFERENCES, MODE_PRIVATE)
+                            .edit()
+                            .putString(APPEARANCE_MODE_KEY, mode.name)
+                            .apply()
+                    },
                     onWebViewReady = { activeWebView = it }
                 )
             }
@@ -92,6 +117,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun DMsOnlyApp(
     initialWebViewState: Bundle?,
+    appearanceMode: AppearanceMode,
+    onAppearanceModeChange: (AppearanceMode) -> Unit,
     onWebViewReady: (WebView) -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
@@ -99,7 +126,10 @@ private fun DMsOnlyApp(
     var reloadToken by remember { mutableIntStateOf(0) }
     var showMenu by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showAppearanceDialog by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
+    val systemDarkTheme = isSystemInDarkTheme()
+    val darkWebAppearance = appearanceMode.resolveDarkTheme(systemDarkTheme)
 
     Scaffold(
         topBar = {
@@ -121,6 +151,13 @@ private fun DMsOnlyApp(
                                     showMenu = false
                                     errorMessage = null
                                     reloadToken++
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Appearance: ${appearanceMode.label()}") },
+                                onClick = {
+                                    showMenu = false
+                                    showAppearanceDialog = true
                                 }
                             )
                             DropdownMenuItem(
@@ -146,6 +183,7 @@ private fun DMsOnlyApp(
                     modifier = Modifier.fillMaxSize(),
                     initialWebViewState = initialWebViewState,
                     reloadToken = reloadToken,
+                    darkAppearance = darkWebAppearance,
                     onWebViewReady = {
                         webView = it
                         onWebViewReady(it)
@@ -172,6 +210,43 @@ private fun DMsOnlyApp(
                 }
             }
         }
+    }
+
+    if (showAppearanceDialog) {
+        AlertDialog(
+            onDismissRequest = { showAppearanceDialog = false },
+            title = { Text("Appearance") },
+            text = {
+                Column {
+                    AppearanceMode.entries.forEach { mode ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = appearanceMode == mode,
+                                    onClick = {
+                                        onAppearanceModeChange(mode)
+                                        showAppearanceDialog = false
+                                    },
+                                    role = Role.RadioButton
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = appearanceMode == mode,
+                                onClick = null
+                            )
+                            Text(mode.label())
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAppearanceDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 
     if (showClearDialog) {
@@ -204,6 +279,12 @@ private fun DMsOnlyApp(
             }
         )
     }
+}
+
+private fun AppearanceMode.label(): String = when (this) {
+    AppearanceMode.SYSTEM -> "System default"
+    AppearanceMode.LIGHT -> "Light"
+    AppearanceMode.DARK -> "Dark"
 }
 
 @Composable

@@ -9,7 +9,7 @@ object InstagramRoutes {
     private const val WWW_INSTAGRAM_HOST = "www.instagram.com"
 
     val FEED_HOSTS = setOf(INSTAGRAM_HOST, WWW_INSTAGRAM_HOST)
-    val BLOCKED_FIRST_SEGMENTS = setOf("explore", "reels")
+    val BLOCKED_FIRST_SEGMENTS = setOf("explore", "reels", "feed", "p", "tv")
 
     fun isInstagramHost(uri: Uri): Boolean = isInstagramHostName(uri.host)
     private fun isInstagramHostName(host: String?): Boolean {
@@ -51,7 +51,6 @@ object InstagramRoutes {
 
     fun isBlockedPath(path: String?): Boolean {
         val normalized = normalizePath(path)
-        if (normalized == "/") return true
         return normalized.removePrefix("/").substringBefore("/").lowercase() in BLOCKED_FIRST_SEGMENTS
     }
 

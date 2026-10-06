@@ -42,6 +42,7 @@ It uses Instagram's real website and normal Instagram login flow. It is not an o
 The app is a native Kotlin Android shell around Instagram's website:
 
 - **Jetpack Compose + Material 3** provide the app bar, loading indicator, error UI, and menu.
+- The Appearance menu persists System default, Light, or Dark locally and applies the selection to the Compose shell. Focus & privacy stores Quiet Hours and Dopamine-Free UI locally.
 - **Android WebView** renders Instagram's actual web interface.
 - `InstagramWebViewClient` handles route policy, external links, page errors, SSL errors, and renderer-process errors.
 - `InstagramRoutes` contains the route allow/block rules and a single navigation decision policy. `/` is allowed as the Stories-bearing Home surface, while Feed post routes remain blocked.

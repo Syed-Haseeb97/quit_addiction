@@ -2,6 +2,7 @@ package com.example.dmsonly.web
 
 import android.net.Uri
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,6 +29,24 @@ class InstagramRoutesTest {
         assertFalse(InstagramRoutes.isBlocked(Uri.parse("https://www.instagram.com/accounts/login/")))
         assertFalse(InstagramRoutes.isBlocked(Uri.parse("https://www.instagram.com/challenge/abc/")))
         assertFalse(InstagramRoutes.isBlocked(Uri.parse("https://www.instagram.com/checkpoint/foo/")))
+    }
+
+    @Test
+    fun navigationDecisionRedirectsBlockedInstagramRoutes() {
+        val decision = InstagramRoutes.decide(Uri.parse("https://www.instagram.com/reels/audio/123/"))
+        assertTrue(decision is InstagramRoutes.Decision.Redirect)
+        assertEquals(InstagramRoutes.DM_INBOX, (decision as InstagramRoutes.Decision.Redirect).url)
+    }
+
+    @Test
+    fun navigationDecisionOpensExternalHttpLinks() {
+        val decision = InstagramRoutes.decide(Uri.parse("https://example.com/help"))
+        assertTrue(decision is InstagramRoutes.Decision.OpenExternally)
+    }
+
+    @Test
+    fun navigationDecisionBlocksNonHttpSchemes() {
+        assertTrue(InstagramRoutes.decide(Uri.parse("intent://instagram/")).let { it is InstagramRoutes.Decision.Block })
     }
 
     @Test

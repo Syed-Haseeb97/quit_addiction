@@ -176,6 +176,7 @@ fun InstagramWebView(
     }
 }
 
+@Suppress("DEPRECATION")
 private fun applyWebAppearance(webView: WebView, darkAppearance: Boolean) {
     if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
         WebSettingsCompat.setForceDark(

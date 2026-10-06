@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 @Composable
+@Suppress("DEPRECATION")
 fun DMsOnlyTheme(
     appearanceMode: AppearanceMode = AppearanceMode.SYSTEM,
     content: @Composable () -> Unit

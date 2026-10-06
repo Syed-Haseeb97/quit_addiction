@@ -12,9 +12,11 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import java.io.ByteArrayInputStream
 import com.example.dmsonly.web.InstagramRoutes.Decision
 
 class InstagramWebViewClient(
+    private val ghostMode: Boolean = false,
     private val onLoadingChanged: (Boolean) -> Unit,
     private val onMainFrameError: (String) -> Unit,
     private val onMainFrameRecovered: () -> Unit,
@@ -38,6 +40,28 @@ class InstagramWebViewClient(
         if (InstagramRoutes.isBlocked(url) && !InstagramRoutes.isInboxUrl(view.url)) {
             view.loadUrl(InstagramRoutes.DM_INBOX)
         }
+    }
+
+    override fun shouldInterceptRequest(
+        view: WebView,
+        request: WebResourceRequest
+    ): WebResourceResponse? {
+        if (ghostMode && InstagramRoutes.isInstagramHost(request.url) && isGhostEndpoint(request.url)) {
+            return WebResourceResponse(
+                "text/plain",
+                "UTF-8",
+                204,
+                "No Content",
+                emptyMap(),
+                ByteArrayInputStream(ByteArray(0))
+            )
+        }
+        return super.shouldInterceptRequest(view, request)
+    }
+
+    private fun isGhostEndpoint(uri: Uri): Boolean {
+        val path = uri.path?.lowercase() ?: return false
+        return path.contains("/mnet/seen") || path.contains("/mnet/typing")
     }
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {

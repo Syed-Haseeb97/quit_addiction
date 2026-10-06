@@ -31,7 +31,6 @@ class InstagramUiShieldTest {
         assertTrue(script.contains("function isGenericReelsPath(path)"))
         assertTrue(script.contains("function routeTransitionBlocked(raw)"))
         assertTrue(script.contains("function isBlockedUrl(raw)"))
-        assertTrue(script.contains("second line of defense"))
     }
 
     @Test

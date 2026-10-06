@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.dmsonly.ui.theme.DMsOnlyTheme
+import com.example.dmsonly.web.InstagramBackNavigation
 import com.example.dmsonly.web.InstagramWebView
 import com.example.dmsonly.web.clearInstagramSession
 
@@ -50,12 +51,18 @@ class MainActivity : ComponentActivity() {
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     val webView = activeWebView
-                    if (webView?.canGoBack() == true) {
-                        webView.goBack()
-                    } else {
+                    if (webView == null) {
                         isEnabled = false
                         onBackPressedDispatcher.onBackPressed()
+                        return
                     }
+
+                    if (InstagramBackNavigation.goBack(webView)) {
+                        return
+                    }
+
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
                 }
             }
         )

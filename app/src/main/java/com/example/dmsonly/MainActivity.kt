@@ -8,7 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -30,17 +30,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import com.example.dmsonly.ui.theme.DMsOnlyTheme
 import com.example.dmsonly.web.InstagramWebView
 import com.example.dmsonly.web.clearInstagramSession
 
+private const val WEBVIEW_STATE_KEY = "webview_state"
+
 class MainActivity : ComponentActivity() {
 
     private var activeWebView: WebView? = null
+    private var restoredWebViewState: Bundle? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        restoredWebViewState = savedInstanceState?.getBundle(WEBVIEW_STATE_KEY)
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -60,15 +63,26 @@ class MainActivity : ComponentActivity() {
         setContent {
             DMsOnlyTheme {
                 DMsOnlyApp(
+                    initialWebViewState = restoredWebViewState,
                     onWebViewReady = { activeWebView = it }
                 )
             }
         }
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        activeWebView?.let { webView ->
+            val webViewState = Bundle()
+            webView.saveState(webViewState)
+            outState.putBundle(WEBVIEW_STATE_KEY, webViewState)
+        }
+        super.onSaveInstanceState(outState)
+    }
 }
 
 @Composable
 private fun DMsOnlyApp(
+    initialWebViewState: Bundle?,
     onWebViewReady: (WebView) -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
@@ -77,8 +91,6 @@ private fun DMsOnlyApp(
     var showMenu by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-
-    LocalContext.current
 
     Scaffold(
         topBar = {
@@ -118,11 +130,12 @@ private fun DMsOnlyApp(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .safeDrawingPadding()
+                .padding(padding)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 InstagramWebView(
                     modifier = Modifier.fillMaxSize(),
+                    initialWebViewState = initialWebViewState,
                     reloadToken = reloadToken,
                     onWebViewReady = {
                         webView = it

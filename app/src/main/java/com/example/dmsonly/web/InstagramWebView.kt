@@ -102,10 +102,11 @@ fun InstagramWebView(
                     )
                     webChromeClient = chromeClient
 
+                    installDocumentStartShieldIfSupported(this)
+
                     if (generation == 0 && initialWebViewState != null) {
                         restoreState(initialWebViewState)
                     } else {
-                        installDocumentStartShieldIfSupported(this)
                         loadUrl(InstagramRoutes.DM_INBOX)
                     }
 

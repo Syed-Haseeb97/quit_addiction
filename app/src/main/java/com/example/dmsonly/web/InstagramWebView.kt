@@ -157,7 +157,7 @@ fun InstagramWebView(
                         )
                     }
 
-                    installDocumentStartShieldIfSupported(this)
+                    installDocumentStartShieldIfSupported(this, dopamineFreeUi)
 
                     if (generation == 0 && initialWebViewState != null) {
                         restoreState(initialWebViewState)
@@ -207,11 +207,11 @@ private fun applyWebAppearance(webView: WebView, darkAppearance: Boolean) {
     }
 }
 
-private fun installDocumentStartShieldIfSupported(webView: WebView) {
+private fun installDocumentStartShieldIfSupported(webView: WebView, dopamineFreeUi: Boolean) {
     if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
         WebViewCompat.addDocumentStartJavaScript(
             webView,
-            InstagramUiShield.script,
+            InstagramUiShield.scriptFor(dopamineFreeUi),
             setOf("https://instagram.com", "https://*.instagram.com")
         )
     }

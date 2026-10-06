@@ -42,7 +42,7 @@ object InstagramRoutes {
 
     fun decide(raw: String): Decision? = parseJavaUri(raw)?.let { uri ->
         when {
-            isInstagramHost(uri.host) && isBlockedPath(uri.path) -> Decision.Redirect(DM_INBOX)
+            isInstagramHostName(uri.host) && isBlockedPath(uri.path) -> Decision.Redirect(DM_INBOX)
             isInstagramHostName(uri.host) -> Decision.Allow
             uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(uri.toString())
             else -> Decision.Block

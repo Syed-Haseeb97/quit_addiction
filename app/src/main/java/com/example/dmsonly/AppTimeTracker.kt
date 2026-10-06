@@ -36,10 +36,7 @@ class AppTimeTracker(
 
     @Synchronized
     fun stop() {
-        val started = startedAtElapsed ?: return
-        val day = startedDay ?: dayKey(nowMillis())
-        val duration = ((elapsedRealtime() - started).coerceAtLeast(0L)) / 1000L
-        addSeconds(day, duration)
+        persistCurrentSegment()
         startedAtElapsed = null
         startedDay = null
     }
@@ -47,11 +44,15 @@ class AppTimeTracker(
     @Synchronized
     fun snapshot(): AppTimeSnapshot {
         persistCurrentSegment()
-        val today = dayKey(nowMillis())
-        val yesterday = dayKey(offsetDay(nowMillis(), -1))
+        val now = nowMillis()
+        val today = dayKey(now)
+        val yesterday = dayKey(offsetDay(now, -1))
         var sevenDays = 0L
         for (offset in 0 downTo -6) {
-            sevenDays += preferences.getLong(DAY_PREFIX + dayKey(offsetDay(nowMillis(), offset)), 0L)
+            sevenDays += preferences.getLong(
+                DAY_PREFIX + dayKey(offsetDay(now, offset)),
+                0L
+            )
         }
         return AppTimeSnapshot(
             todaySeconds = preferences.getLong(DAY_PREFIX + today, 0L),
@@ -62,14 +63,15 @@ class AppTimeTracker(
 
     @Synchronized
     fun reset() {
+        val wasRunning = startedAtElapsed != null
         preferences.edit().clear().apply()
-        startedAtElapsed = null
-        startedDay = null
+        startedAtElapsed = if (wasRunning) elapsedRealtime() else null
+        startedDay = if (wasRunning) dayKey(nowMillis()) else null
     }
 
     private fun persistCurrentSegment() {
         val started = startedAtElapsed ?: return
-        val day = startedDay ?: return
+        val day = startedDay ?: dayKey(nowMillis())
         val duration = ((elapsedRealtime() - started).coerceAtLeast(0L)) / 1000L
         if (duration > 0) {
             addSeconds(day, duration)

@@ -30,7 +30,7 @@ It uses Instagram's real website and normal Instagram login flow. It is not an o
 - Adds a DOM/JavaScript UI shield to re-hide those destinations when Instagram dynamically updates its page.
 - Uses Android's system document picker for file attachments supported by Instagram Web.
 - Provides Refresh and Clear Instagram Session actions.
-- Handles loading states, retryable page errors, external links, SSL errors, and WebView renderer termination.
+- Handles loading states, retryable page errors, external links, SSL errors, and automatic WebView renderer recovery.
 - Includes unit tests for URL-routing rules and a GitHub Actions build workflow.
 
 ## How it works
@@ -40,8 +40,9 @@ The app is a native Kotlin Android shell around Instagram's website:
 - **Jetpack Compose + Material 3** provide the app bar, loading indicator, error UI, and menu.
 - **Android WebView** renders Instagram's actual web interface.
 - `InstagramWebViewClient` handles route policy, external links, page errors, SSL errors, and renderer-process errors.
-- `InstagramRoutes` contains the route allow/block rules.
-- `InstagramUiShield` hides Feed/Explore/Reels links and responds to dynamic page updates and SPA history changes.
+- `InstagramRoutes` contains the route allow/block rules and a single navigation decision policy.
+- `InstagramBackNavigation` skips blocked destinations when the Android Back button walks WebView history.
+- `InstagramUiShield` hides Feed/Explore/Reels links, guards SPA history changes, and is injected at document start when supported by AndroidX WebKit (with a page-finish fallback).
 - `InstagramWebChromeClient` connects web file selection to Android's system document picker.
 
 There is no app backend and no JavaScript-to-Android bridge.
@@ -322,9 +323,9 @@ adb logcat | Select-String -Pattern "chromium|WebView|dmsonly"
 ### Where to make changes
 
 - **App shell, top bar, menu, back handling, error overlay:** `MainActivity.kt`
-- **WebView settings, cookies, upload picker, lifecycle:** `InstagramWebView.kt`
+- **WebView settings, cookies, upload picker, document-start shield, renderer recovery:** `InstagramWebView.kt`
 - **URL blocking and allowed authentication routes:** `InstagramRoutes.kt`
-- **Navigation callbacks and WebView error handling:** `InstagramWebViewClient.kt`
+- **Navigation callbacks, SPA history policy, external links, and WebView error handling:** `InstagramWebViewClient.kt`
 - **Feed/Explore/Reels DOM shield selectors:** `InstagramUiShield.kt`
 - **File upload callback:** `InstagramWebChromeClient.kt`
 - **Build dependencies and SDK versions:** `app/build.gradle.kts` and root `build.gradle.kts`

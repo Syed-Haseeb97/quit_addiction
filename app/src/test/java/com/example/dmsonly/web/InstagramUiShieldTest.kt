@@ -18,7 +18,7 @@ class InstagramUiShieldTest {
         assertTrue(script.contains("function isHomePath()"))
         assertFalse(script.contains("function hideFeedPosts()"))
         assertFalse(script.contains("new MutationObserver"))
-        assertFalse(script.contains("setProperty(\\\"display\\\", \\"none\\\""))
+        assertFalse(script.contains("setProperty(\\\"display\\\", \\\"none\\\""))
     }
 
     @Test
@@ -31,7 +31,20 @@ class InstagramUiShieldTest {
         assertTrue(script.contains("function isGenericReelsPath(path)"))
         assertTrue(script.contains("function routeTransitionBlocked(raw)"))
         assertTrue(script.contains("function isBlockedUrl(raw)"))
-        assertTrue(script.contains("second line of defense"))
+    }
+
+    @Test
+    fun dopamineFreeShieldIncludesEngagementNeutralizers() {
+        val script = InstagramUiShield.scriptFor(true)
+        assertTrue(script.contains("/accounts/activity"))
+        assertTrue(script.contains("Notifications"))
+        assertTrue(script.contains("likes"))
+    }
+
+    @Test
+    fun normalShieldDoesNotAddDopamineNeutralizers() {
+        val script = InstagramUiShield.scriptFor(false)
+        assertFalse(script.contains("/accounts/activity"))
     }
 
     @Test

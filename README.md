@@ -30,8 +30,10 @@ It uses Instagram's real website and normal Instagram login flow. It is not an o
 - Hides Home Feed articles and post tiles, and blocks Feed post, Explore, and generic Reels destinations.
 - Preserves individual `/reel/...` viewing used by Reels shared in DMs; the generic `/reels/...` surface remains blocked.
 - Offers persisted System default, Light, and Dark appearance modes for the native app shell and best-effort WebView darkening.
+- Adds configurable Quiet Hours with overnight schedules such as 23:00–07:00; the WebView is unavailable while the schedule is active.
+- Adds an opt-in Dopamine-Free UI mode that neutralizes common notification/engagement badges while preserving DMs and Stories.
 - Uses Android's system document picker for file attachments supported by Instagram Web.
-- Provides Refresh and Clear Instagram Session actions.
+- Provides Refresh, Focus & privacy, and Clear Instagram Session actions.
 - Handles loading states, retryable page errors, external links, SSL errors, and automatic WebView renderer recovery.
 - Includes unit tests for URL-routing rules and a GitHub Actions build workflow.
 
@@ -40,7 +42,7 @@ It uses Instagram's real website and normal Instagram login flow. It is not an o
 The app is a native Kotlin Android shell around Instagram's website:
 
 - **Jetpack Compose + Material 3** provide the app bar, loading indicator, error UI, and menu.
-- The Appearance menu persists System default, Light, or Dark locally and applies the selection to the Compose shell.
+- The Appearance menu persists System default, Light, or Dark locally and applies the selection to the Compose shell. Focus & privacy stores Quiet Hours and Dopamine-Free UI locally.
 - **Android WebView** renders Instagram's actual web interface.
 - `InstagramWebViewClient` handles route policy, external links, page errors, SSL errors, and renderer-process errors.
 - `InstagramRoutes` contains the route allow/block rules and a single navigation decision policy. `/` is allowed as the Stories-bearing Home surface, while Feed post routes remain blocked.

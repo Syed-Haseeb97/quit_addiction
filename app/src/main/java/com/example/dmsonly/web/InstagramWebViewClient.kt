@@ -15,12 +15,18 @@ import android.webkit.WebViewClient
 import com.example.dmsonly.web.InstagramRoutes.Decision
 
 class InstagramWebViewClient(
+    dopamineFreeUi: Boolean = false,
     private val onLoadingChanged: (Boolean) -> Unit,
     private val onMainFrameError: (String) -> Unit,
     private val onMainFrameRecovered: () -> Unit,
     private val onRendererGone: () -> Unit,
 ) : WebViewClient() {
     private val dmReelNavigationGuard = DmReelNavigationGuard()
+    @Volatile
+    private var dopamineFreeUiEnabled = dopamineFreeUi
+    fun setDopamineFreeUi(enabled: Boolean) {
+        dopamineFreeUiEnabled = enabled
+    }
 
     /**
      * Receives modern Jetpack WebKit navigation callbacks, including
@@ -39,7 +45,6 @@ class InstagramWebViewClient(
             view.loadUrl(InstagramRoutes.DM_INBOX)
         }
     }
-
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         if (!request.isForMainFrame) return false
         dmReelNavigationGuard.redirectTarget(view.url)
@@ -88,7 +93,7 @@ class InstagramWebViewClient(
 
     override fun onPageFinished(view: WebView, url: String?) {
         if (runCatching { InstagramRoutes.isInstagramHost(Uri.parse(url ?: "")) }.getOrDefault(false)) {
-            InstagramUiShield.install(view)
+            InstagramUiShield.install(view, dopamineFreeUiEnabled)
         }
         onLoadingChanged(false)
         onMainFrameRecovered()

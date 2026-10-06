@@ -39,7 +39,8 @@ fun InstagramWebView(
     initialWebViewState: Bundle? = null,
     reloadToken: Int = 0,
     darkAppearance: Boolean,
-    onWebViewReady: (WebView) -> Unit,
+    dopamineFreeUi: Boolean = false,
+    onWebViewReady: (WebView?) -> Unit,
     onLoadingChanged: (Boolean) -> Unit,
     onError: (String) -> Unit,
     onRecovered: () -> Unit,
@@ -47,6 +48,7 @@ fun InstagramWebView(
     var webView by remember { mutableStateOf<WebView?>(null) }
     var generation by remember { mutableIntStateOf(0) }
 
+    val latestOnWebViewReady by androidx.compose.runtime.rememberUpdatedState(onWebViewReady)
     val latestOnLoading by androidx.compose.runtime.rememberUpdatedState(onLoadingChanged)
     val latestOnError by androidx.compose.runtime.rememberUpdatedState(onError)
     val latestOnRecovered by androidx.compose.runtime.rememberUpdatedState(onRecovered)
@@ -129,6 +131,7 @@ fun InstagramWebView(
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
                     val client = InstagramWebViewClient(
+                        dopamineFreeUi = dopamineFreeUi,
                         onLoadingChanged = latestOnLoading,
                         onMainFrameError = latestOnError,
                         onMainFrameRecovered = latestOnRecovered,
@@ -154,7 +157,7 @@ fun InstagramWebView(
                         )
                     }
 
-                    installDocumentStartShieldIfSupported(this)
+                    installDocumentStartShieldIfSupported(this, dopamineFreeUi)
 
                     if (generation == 0 && initialWebViewState != null) {
                         restoreState(initialWebViewState)
@@ -169,6 +172,11 @@ fun InstagramWebView(
             update = {
                 webView = it
                 onWebViewReady(it)
+                applyWebAppearance(it, darkAppearance)
+                (it.webViewClient as? InstagramWebViewClient)?.apply {
+                    setDopamineFreeUi(dopamineFreeUi)
+                }
+                InstagramUiShield.install(it, dopamineFreeUi)
             },
             onRelease = {
                 chromeClient.cancelPendingFileChooser()
@@ -187,6 +195,7 @@ fun InstagramWebView(
                 it.destroy()
             }
             webView = null
+            latestOnWebViewReady(null)
         }
     }
 }
@@ -204,11 +213,11 @@ private fun applyWebAppearance(webView: WebView, darkAppearance: Boolean) {
     }
 }
 
-private fun installDocumentStartShieldIfSupported(webView: WebView) {
+private fun installDocumentStartShieldIfSupported(webView: WebView, dopamineFreeUi: Boolean) {
     if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
         WebViewCompat.addDocumentStartJavaScript(
             webView,
-            InstagramUiShield.script,
+            InstagramUiShield.scriptFor(dopamineFreeUi),
             setOf("https://instagram.com", "https://*.instagram.com")
         )
     }

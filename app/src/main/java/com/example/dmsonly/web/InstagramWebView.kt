@@ -24,6 +24,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
@@ -44,6 +47,7 @@ fun InstagramWebView(
     val latestOnLoading by androidx.compose.runtime.rememberUpdatedState(onLoadingChanged)
     val latestOnError by androidx.compose.runtime.rememberUpdatedState(onError)
     val latestOnRecovered by androidx.compose.runtime.rememberUpdatedState(onRecovered)
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val chromeClient = remember {
         InstagramWebChromeClient { latestOnLoading(it < 100) }
@@ -57,6 +61,24 @@ fun InstagramWebView(
 
     SideEffect {
         chromeClient.launchChooser = { intent -> chooserLauncher.launch(intent) }
+    }
+
+    DisposableEffect(lifecycleOwner, webView) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> {
+                    webView?.onPause()
+                    CookieManager.getInstance().flush()
+                }
+                Lifecycle.Event.ON_RESUME -> webView?.onResume()
+                else -> Unit
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LaunchedEffect(reloadToken) {
@@ -105,6 +127,7 @@ fun InstagramWebView(
                         onMainFrameError = latestOnError,
                         onMainFrameRecovered = latestOnRecovered,
                         onRendererGone = {
+                            chromeClient.cancelPendingFileChooser()
                             latestOnError("Instagram's WebView process stopped. Recreating the WebView…")
                             generation++
                         }
@@ -128,6 +151,7 @@ fun InstagramWebView(
                 onWebViewReady(it)
             },
             onRelease = {
+                chromeClient.cancelPendingFileChooser()
                 it.stopLoading()
                 it.destroy()
             }
@@ -137,6 +161,7 @@ fun InstagramWebView(
     DisposableEffect(Unit) {
         onDispose {
             CookieManager.getInstance().flush()
+            chromeClient.cancelPendingFileChooser()
             webView?.let {
                 it.stopLoading()
                 it.destroy()

@@ -10,13 +10,17 @@ import android.webkit.WebView
  */
 object InstagramUiShield {
 
-    val script: String by lazy { buildScript() }
+    val script: String by lazy { buildScript(false) }
 
-    fun install(webView: WebView) {
-        webView.evaluateJavascript(script, null)
+    fun install(webView: WebView, dopamineFreeUi: Boolean = false) {
+        webView.evaluateJavascript(buildScript(dopamineFreeUi), null)
     }
 
-    private fun buildScript(): String {
+    fun scriptFor(dopamineFreeUi: Boolean): String = buildScript(dopamineFreeUi)
+
+    private fun buildScript(dopamineFreeUi: Boolean): String {
+        val dopamineCss = if (dopamineFreeUi) listOf("""a[href*="/accounts/activity"]""", """a[aria-label*="Notifications" i]""", """[aria-label*="notification" i][role="button"]""", """span[aria-label*="notification" i]""", """span[aria-label*="likes" i]""").joinToString(",\n") + " { visibility: hidden !important; pointer-events: none !important; }" else ""
+
         val css = listOf(
             """html[data-dms-only-home="true"] main article""",
             """html[data-dms-only-home="true"] main [role="article"]""",
@@ -28,7 +32,7 @@ object InstagramUiShield {
             """a[aria-label="Explore"]""",
             """a[aria-label="Search and explore"]""",
             """a[aria-label="Reels"]"""
-        ).joinToString(",\n") + " { visibility: hidden !important; pointer-events: none !important; }"
+        ).joinToString(",\n") + " { visibility: hidden !important; pointer-events: none !important; }" + dopamineCss
 
         val segments = InstagramRoutes.BLOCKED_FIRST_SEGMENTS
             .joinToString(",") { "\"" + it + "\"" }

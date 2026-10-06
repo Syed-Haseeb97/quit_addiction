@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.activity.ComponentActivity
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
@@ -47,7 +47,7 @@ fun InstagramWebView(
     val latestOnLoading by androidx.compose.runtime.rememberUpdatedState(onLoadingChanged)
     val latestOnError by androidx.compose.runtime.rememberUpdatedState(onError)
     val latestOnRecovered by androidx.compose.runtime.rememberUpdatedState(onRecovered)
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = (androidx.compose.ui.platform.LocalContext.current as ComponentActivity)
 
     val chromeClient = remember {
         InstagramWebChromeClient { latestOnLoading(it < 100) }

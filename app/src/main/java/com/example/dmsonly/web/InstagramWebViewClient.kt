@@ -1,113 +1,98 @@
 package com.example.dmsonly.web
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.example.dmsonly.web.InstagramRoutes.Decision
 
 class InstagramWebViewClient(
     private val onLoadingChanged: (Boolean) -> Unit,
     private val onMainFrameError: (String) -> Unit,
-    private val onMainFrameRecovered: () -> Unit
+    private val onMainFrameRecovered: () -> Unit,
+    private val onRendererGone: () -> Unit,
 ) : WebViewClient() {
 
-    override fun shouldOverrideUrlLoading(
-        view: WebView,
-        request: WebResourceRequest
-    ): Boolean {
+    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         if (!request.isForMainFrame) return false
-
-        val uri = request.url
-        return when {
-            InstagramRoutes.isInstagramHost(uri) -> {
-                if (InstagramRoutes.isBlocked(uri)) {
-                    view.loadUrl(InstagramRoutes.DM_INBOX)
-                    true
-                } else {
-                    false
-                }
-            }
-
-            uri.scheme == "http" || uri.scheme == "https" -> {
-                openExternal(view, uri)
+        return when (val decision = InstagramRoutes.decide(request.url)) {
+            Decision.Allow -> false
+            Decision.Block -> true
+            is Decision.Redirect -> {
+                if (!InstagramRoutes.isInboxUrl(view.url)) view.loadUrl(decision.url)
                 true
             }
-
-            else -> true
+            is Decision.OpenExternally -> {
+                openExternal(view, decision.uri)
+                true
+            }
         }
     }
 
-    override fun onPageStarted(
-        view: WebView,
-        url: String?,
-        favicon: android.graphics.Bitmap?
-    ) {
+    override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+        if (InstagramRoutes.isBlocked(url) && !InstagramRoutes.isInboxUrl(view.url)) {
+            view.loadUrl(InstagramRoutes.DM_INBOX)
+        }
+        super.doUpdateVisitedHistory(view, url, isReload)
+    }
+
+    override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
         onLoadingChanged(true)
         super.onPageStarted(view, url, favicon)
     }
 
     override fun onPageFinished(view: WebView, url: String?) {
+        if (runCatching { InstagramRoutes.isInstagramHost(Uri.parse(url ?: "")) }.getOrDefault(false)) {
+            InstagramUiShield.install(view)
+        }
         onLoadingChanged(false)
-        InstagramUiShield.install(view)
         onMainFrameRecovered()
         super.onPageFinished(view, url)
     }
 
-    override fun onReceivedError(
-        view: WebView,
-        request: WebResourceRequest,
-        error: android.webkit.WebResourceError
-    ) {
+    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
         if (request.isForMainFrame) {
             onLoadingChanged(false)
-            onMainFrameError("Unable to connect to Instagram")
+            onMainFrameError(error.description?.toString() ?: "Unable to connect to Instagram")
         }
         super.onReceivedError(view, request, error)
     }
 
-    override fun onReceivedHttpError(
-        view: WebView,
-        request: WebResourceRequest,
-        errorResponse: WebResourceResponse
-    ) {
+    override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
         if (request.isForMainFrame && errorResponse.statusCode >= 400) {
             onLoadingChanged(false)
-            onMainFrameError(
-                "Instagram returned an HTTP " + errorResponse.statusCode + " error"
-            )
+            onMainFrameError("Instagram returned HTTP " + errorResponse.statusCode + ". Try again in a moment.")
         }
         super.onReceivedHttpError(view, request, errorResponse)
     }
 
-    override fun onReceivedSslError(
-        view: WebView,
-        handler: SslErrorHandler,
-        error: SslError
-    ) {
-        // Always reject certificate errors. Never call handler.proceed().
+    override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
         handler.cancel()
-
         if (error.url == view.url) {
             onLoadingChanged(false)
-            onMainFrameError("Secure connection to Instagram could not be verified")
+            onMainFrameError("The secure connection to Instagram could not be verified.")
         }
     }
 
-    override fun onRenderProcessGone(
-        view: WebView,
-        detail: android.webkit.RenderProcessGoneDetail
-    ): Boolean {
+    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
         onLoadingChanged(false)
-        onMainFrameError("Instagram's WebView process stopped. Restart the app to continue.")
+        onRendererGone()
         return true
     }
 
     private fun openExternal(view: WebView, uri: Uri) {
-        val intent = Intent(Intent.ACTION_VIEW, uri)
-        runCatching { view.context.startActivity(intent) }
+        try {
+            view.context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+        } catch (_: ActivityNotFoundException) {
+            onMainFrameError("No app can open this link.")
+        }
     }
 }

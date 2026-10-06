@@ -29,3 +29,12 @@ jobs:
 
       - name: Assemble debug APK
         run: gradle assembleDebug
+
+      - name: Upload debug APK and unit test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-verification
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/test-results/testDebugUnitTest/**/*.xml
+          if-no-files-found: error

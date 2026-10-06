@@ -71,7 +71,7 @@ There is no app backend and no JavaScript-to-Android bridge.
 | --- | --- |
 | Android Gradle Plugin | 9.4.0 |
 | Gradle | 9.6.0 |
-| Kotlin | 2.4.10 |
+| Kotlin | AGP 9 built-in Kotlin support |
 | Java source/target | 17 |
 | Compile SDK | 37 |
 | Target SDK | 37 |

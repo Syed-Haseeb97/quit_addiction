@@ -11,26 +11,26 @@ object InstagramRoutes {
     val FEED_HOSTS = setOf(INSTAGRAM_HOST, WWW_INSTAGRAM_HOST)
     val BLOCKED_FIRST_SEGMENTS = setOf("explore", "reels")
 
-    fun isInstagramHost(uri: Uri): Boolean = isInstagramHost(uri.host)
-    fun isInstagramHost(host: String?): Boolean {
+    fun isInstagramHost(uri: Uri): Boolean = isInstagramHostName(uri.host)
+    private fun isInstagramHostName(host: String?): Boolean {
         val normalized = host?.lowercase() ?: return false
         return normalized == INSTAGRAM_HOST || normalized == WWW_INSTAGRAM_HOST
     }
 
-    fun isInstagramHost(raw: String?): Boolean = parseJavaUri(raw)?.host?.let(::isInstagramHost) == true
+    fun isInstagramHost(raw: String?): Boolean = parseJavaUri(raw)?.host?.let(::isInstagramHostName) == true
 
     fun isInboxUrl(raw: String?): Boolean = parseJavaUri(raw)?.let { uri ->
-        isInstagramHost(uri.host) && normalizePath(uri.path) == "/direct/inbox"
+        isInstagramHostName(uri.host) && normalizePath(uri.path) == "/direct/inbox"
     } == true
 
     fun isAuthFlowUrl(raw: String?): Boolean = parseJavaUri(raw)?.let { uri ->
-        isInstagramHost(uri.host) && isAuthenticationRoute(normalizePath(uri.path))
+        isInstagramHostName(uri.host) && isAuthenticationRoute(normalizePath(uri.path))
     } == true
 
     fun isBlocked(uri: Uri): Boolean = isInstagramHost(uri) && isBlockedPath(uri.path)
 
     fun isBlocked(raw: String?): Boolean = parseJavaUri(raw)?.let { uri ->
-        isInstagramHost(uri.host) && isBlockedPath(uri.path)
+        isInstagramHostName(uri.host) && isBlockedPath(uri.path)
     } == true
 
     fun decide(uri: Uri): Decision = when {
@@ -43,7 +43,7 @@ object InstagramRoutes {
     fun decide(raw: String): Decision? = parseJavaUri(raw)?.let { uri ->
         when {
             isInstagramHost(uri.host) && isBlockedPath(uri.path) -> Decision.Redirect(DM_INBOX)
-            isInstagramHost(uri.host) -> Decision.Allow
+            isInstagramHostName(uri.host) -> Decision.Allow
             uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(
                 Uri.parse(uri.toString())
             )

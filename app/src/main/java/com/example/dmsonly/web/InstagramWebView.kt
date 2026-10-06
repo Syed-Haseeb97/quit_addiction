@@ -129,8 +129,6 @@ fun InstagramWebView(
             CookieManager.getInstance().flush()
             webView?.let {
                 it.stopLoading()
-                it.webChromeClient = null
-                it.webViewClient = null
                 it.destroy()
             }
             webView = null

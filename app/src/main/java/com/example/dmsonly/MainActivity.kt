@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.example.dmsonly.ui.theme.AppearanceMode
 import com.example.dmsonly.ui.theme.DMsOnlyTheme
 import com.example.dmsonly.web.InstagramBackNavigation
@@ -51,10 +52,12 @@ class MainActivity : ComponentActivity() {
 
     private var activeWebView: WebView? = null
     private var restoredWebViewState: Bundle? = null
+    private lateinit var appTimeTracker: AppTimeTracker
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         restoredWebViewState = savedInstanceState?.getBundle(WEBVIEW_STATE_KEY)
+        appTimeTracker = AppTimeTracker(getSharedPreferences(AppTimeTracker.PREFERENCES, MODE_PRIVATE))
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -97,10 +100,21 @@ class MainActivity : ComponentActivity() {
                             .putString(APPEARANCE_MODE_KEY, mode.name)
                             .apply()
                     },
+                    appTimeTracker = appTimeTracker,
                     onWebViewReady = { activeWebView = it }
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appTimeTracker.start()
+    }
+
+    override fun onPause() {
+        appTimeTracker.stop()
+        super.onPause()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -119,6 +133,7 @@ private fun DMsOnlyApp(
     initialWebViewState: Bundle?,
     appearanceMode: AppearanceMode,
     onAppearanceModeChange: (AppearanceMode) -> Unit,
+    appTimeTracker: AppTimeTracker,
     onWebViewReady: (WebView) -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
@@ -127,6 +142,8 @@ private fun DMsOnlyApp(
     var showMenu by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
     var showAppearanceDialog by remember { mutableStateOf(false) }
+    var showAppTimeDialog by remember { mutableStateOf(false) }
+    var appTimeSnapshot by remember { mutableStateOf<AppTimeSnapshot?>(null) }
     var webView by remember { mutableStateOf<WebView?>(null) }
     val systemDarkTheme = isSystemInDarkTheme()
     val darkWebAppearance = appearanceMode.resolveDarkTheme(systemDarkTheme)
@@ -151,6 +168,14 @@ private fun DMsOnlyApp(
                                     showMenu = false
                                     errorMessage = null
                                     reloadToken++
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("App time") },
+                                onClick = {
+                                    showMenu = false
+                                    appTimeSnapshot = appTimeTracker.snapshot()
+                                    showAppTimeDialog = true
                                 }
                             )
                             DropdownMenuItem(
@@ -210,6 +235,41 @@ private fun DMsOnlyApp(
                 }
             }
         }
+    }
+
+    if (showAppTimeDialog) {
+        val snapshot = appTimeSnapshot ?: appTimeTracker.snapshot()
+        AlertDialog(
+            onDismissRequest = { showAppTimeDialog = false },
+            title = { Text("App time") },
+            text = {
+                Column {
+                    Text("Today: ${formatDuration(snapshot.todaySeconds)}")
+                    Text("Yesterday: ${formatDuration(snapshot.yesterdaySeconds)}")
+                    Text("Last 7 days: ${formatDuration(snapshot.last7DaysSeconds)}")
+                    Text(
+                        modifier = Modifier.padding(top = 12.dp),
+                        text = "Tracked only while DMs Only is in the foreground. " +
+                            "Usage stays on this device."
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        appTimeTracker.reset()
+                        appTimeSnapshot = appTimeTracker.snapshot()
+                    }
+                ) {
+                    Text("Reset")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAppTimeDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 
     if (showAppearanceDialog) {

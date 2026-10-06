@@ -16,11 +16,26 @@ class InstagramRoutesTest {
 
     @Test
     fun feedExploreAndReelsAreBlocked() {
-        assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/"))
+        assertFalse(InstagramRoutes.isBlocked("https://www.instagram.com/"))
         assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/explore/"))
         assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/explore/tags/android/"))
         assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/reels/"))
         assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/reels/audio/123/"))
+        assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/feed/"))
+        assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/p/shortcode/"))
+        assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/tv/shortcode/"))
+    }
+
+    @Test
+    fun storiesAndIndividualReelRoutesRemainAllowed() {
+        assertFalse(InstagramRoutes.isBlocked("https://www.instagram.com/stories/user/123/"))
+        assertFalse(InstagramRoutes.isBlocked("https://www.instagram.com/reel/shortcode/"))
+    }
+
+    @Test
+    fun rootBackDestinationIsAllowedForStoriesWhileFeedPostsAreBlocked() {
+        assertFalse(InstagramRoutes.isBlocked("https://www.instagram.com/"))
+        assertTrue(InstagramRoutes.isBlocked("https://www.instagram.com/p/shortcode/"))
     }
 
     @Test

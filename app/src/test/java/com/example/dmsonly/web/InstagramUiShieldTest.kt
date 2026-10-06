@@ -25,9 +25,9 @@ class InstagramUiShieldTest {
     fun shieldGuardsSpaHistoryAndDmReelContext() {
         val script = InstagramUiShield.script
 
-        assertTrue(script.contains("\\[\\\"pushState\\\", \\"replaceState\\\"]"))
-        assertTrue(script.contains("window.addEventListener(\\\"popstate\\\", applyShield)"))
-        assertTrue(script.contains("window.addEventListener(\\\"hashchange\\\", applyShield)"))
+        assertTrue(script.contains("[\"pushState\", \"replaceState\"]"))
+        assertTrue(script.contains("window.addEventListener(\"popstate\", applyShield)"))
+        assertTrue(script.contains("window.addEventListener(\"hashchange\", applyShield)"))
         assertTrue(script.contains("function isGenericReelsPath(path)"))
         assertTrue(script.contains("function routeTransitionBlocked(raw)"))
         assertTrue(script.contains("function isBlockedUrl(raw)"))

@@ -1,6 +1,7 @@
 package com.example.dmsonly.web
 
 import android.net.Uri
+import java.net.URI
 
 object InstagramRoutes {
     const val DM_INBOX = "https://www.instagram.com/direct/inbox/"
@@ -16,24 +17,38 @@ object InstagramRoutes {
         return normalized == INSTAGRAM_HOST || normalized == WWW_INSTAGRAM_HOST
     }
 
-    fun isInboxUrl(raw: String?): Boolean = runCatching {
-        val uri = Uri.parse(raw ?: return false)
-        isInstagramHost(uri) && normalizePath(uri.path) == "/direct/inbox"
-    }.getOrDefault(false)
+    fun isInstagramHost(raw: String?): Boolean = parseJavaUri(raw)?.host?.let(::isInstagramHost) == true
 
-    fun isAuthFlowUrl(raw: String?): Boolean = runCatching {
-        val uri = Uri.parse(raw ?: return false)
-        isInstagramHost(uri) && isAuthenticationRoute(normalizePath(uri.path))
-    }.getOrDefault(false)
+    fun isInboxUrl(raw: String?): Boolean = parseJavaUri(raw)?.let { uri ->
+        isInstagramHost(uri.host) && normalizePath(uri.path) == "/direct/inbox"
+    } == true
+
+    fun isAuthFlowUrl(raw: String?): Boolean = parseJavaUri(raw)?.let { uri ->
+        isInstagramHost(uri.host) && isAuthenticationRoute(normalizePath(uri.path))
+    } == true
 
     fun isBlocked(uri: Uri): Boolean = isInstagramHost(uri) && isBlockedPath(uri.path)
-    fun isBlocked(raw: String?): Boolean = raw?.let { runCatching { isBlocked(Uri.parse(it)) }.getOrDefault(false) } == true
+
+    fun isBlocked(raw: String?): Boolean = parseJavaUri(raw)?.let { uri ->
+        isInstagramHost(uri.host) && isBlockedPath(uri.path)
+    } == true
 
     fun decide(uri: Uri): Decision = when {
         isInstagramHost(uri) && isBlocked(uri) -> Decision.Redirect(DM_INBOX)
         isInstagramHost(uri) -> Decision.Allow
         uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(uri)
         else -> Decision.Block
+    }
+
+    fun decide(raw: String): Decision? = parseJavaUri(raw)?.let { uri ->
+        when {
+            isInstagramHost(uri.host) && isBlockedPath(uri.path) -> Decision.Redirect(DM_INBOX)
+            isInstagramHost(uri.host) -> Decision.Allow
+            uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(
+                Uri.parse(uri.toString())
+            )
+            else -> Decision.Block
+        }
     }
 
     fun isBlockedPath(path: String?): Boolean {
@@ -54,6 +69,9 @@ object InstagramRoutes {
         if (value.isEmpty()) return "/"
         return value.replace(Regex("/+"), "/").let { if (it.length > 1) it.trimEnd('/') else it }
     }
+
+    private fun parseJavaUri(raw: String?): URI? =
+        raw?.takeIf { it.isNotBlank() }?.let { runCatching { URI(it) }.getOrNull() }
 
     sealed interface Decision {
         data object Allow : Decision

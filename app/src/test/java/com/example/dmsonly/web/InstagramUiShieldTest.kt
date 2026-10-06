@@ -34,6 +34,20 @@ class InstagramUiShieldTest {
     }
 
     @Test
+    fun dopamineFreeShieldIncludesEngagementNeutralizers() {
+        val script = InstagramUiShield.scriptFor(true)
+        assertTrue(script.contains("/accounts/activity"))
+        assertTrue(script.contains("Notifications"))
+        assertTrue(script.contains("likes"))
+    }
+
+    @Test
+    fun normalShieldDoesNotAddDopamineNeutralizers() {
+        val script = InstagramUiShield.scriptFor(false)
+        assertFalse(script.contains("/accounts/activity"))
+    }
+
+    @Test
     fun shieldDoesNotPersistReelContextInStorage() {
         val script = InstagramUiShield.script
 

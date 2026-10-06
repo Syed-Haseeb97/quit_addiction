@@ -27,6 +27,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.ComponentActivity
+import androidx.webkit.NavigationListener
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import androidx.webkit.WebSettingsCompat
@@ -127,7 +128,7 @@ fun InstagramWebView(
                     // Keep this enabled for compatibility; no credentials are stored by the app.
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
-                    webViewClient = InstagramWebViewClient(
+                    val client = InstagramWebViewClient(
                         onLoadingChanged = latestOnLoading,
                         onMainFrameError = latestOnError,
                         onMainFrameRecovered = latestOnRecovered,
@@ -137,7 +138,21 @@ fun InstagramWebView(
                             generation++
                         }
                     )
+                    webViewClient = client
                     webChromeClient = chromeClient
+
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.NAVIGATION_LISTENER)) {
+                        WebViewCompat.addNavigationListener(
+                            this,
+                            object : NavigationListener {
+                                override fun onNavigationStarted(
+                                    navigation: androidx.webkit.Navigation
+                                ) {
+                                    client.handleNavigationStarted(this@apply, navigation.url)
+                                }
+                            }
+                        )
+                    }
 
                     installDocumentStartShieldIfSupported(this)
 

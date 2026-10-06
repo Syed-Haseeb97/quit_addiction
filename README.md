@@ -45,12 +45,12 @@ The app is a native Kotlin Android shell around Instagram's website:
 - `InstagramWebViewClient` handles route policy, external links, page errors, SSL errors, and renderer-process errors.
 - `InstagramRoutes` contains the route allow/block rules and a single navigation decision policy. `/` is allowed as the Stories-bearing Home surface, while Feed post routes remain blocked.
 - `InstagramBackNavigation` skips blocked destinations when the Android Back button walks WebView history.
-- `InstagramUiShield` uses persistent CSS to hide Home Feed articles and post links while preserving the Story row; it does not repeatedly mutate Feed nodes. Its SPA route guard preserves DM-originated individual Reel viewing and blocks generic Reels transitions.
-- `DmReelNavigationGuard` tracks only the active WebView's current DM-originated Reel session and returns generic `/reels/...` transitions to the most recently allowed `/reel/...` item. The page-level transient marker is stored in WebView `sessionStorage` and cleared when leaving the individual Reel flow; it contains only route state, not account data.
+- `InstagramUiShield` uses persistent CSS to hide Home Feed articles and post links while preserving the Story row; it does not repeatedly mutate Feed nodes. Its page-side history guard is paired with AndroidX WebKit's `NavigationListener`, which observes same-document SPA navigations so native route policy can repair transitions the page-side hook misses.
+- `DmReelNavigationGuard` tracks only the active WebView's current DM-originated Reel session and returns generic `/reels/...` transitions to the most recently allowed `/reel/...` item. The state lives only in memory for the active WebView session; it contains only route state, not account data.
 - Appearance selection is stored locally as a single preference; Compose system bars and WebView darkening follow the selected mode where supported by the installed Android System WebView.
 - `InstagramWebChromeClient` connects web file selection to Android's system document picker.
 
-There is no app backend and no JavaScript-to-Android bridge.
+There is no app backend and no legacy `addJavascriptInterface` bridge; SPA navigation observation uses AndroidX WebKit's `NavigationListener` on the main frame.
 
 ## Requirements
 
@@ -433,8 +433,8 @@ Use this checklist after a build or after changing WebView behavior.
 
 - This is a WebView wrapper around Instagram's website, not an official Instagram client.
 - Instagram can change its website DOM, routes, login process, and WebView compatibility without notice.
-- Home Feed article hiding depends on Instagram rendering posts inside `main article` or `[role="article"]`; CSS hides those surfaces without mutating/replacing post nodes or observing every DOM mutation. Changed markup may need maintenance; direct Feed post routes remain blocked by native route policy.
-- Generic `/reels/...` surfaces remain blocked while individual `/reel/...` routes are allowed to preserve DM-shared Reel viewing. Instagram may change how it routes either surface.
+- Home Feed article hiding depends on Instagram rendering posts inside `main article` or `[role="article"]`; CSS now uses layout-preserving `visibility` rather than repeatedly mutating/removing Feed nodes. Changed markup may need maintenance; direct Feed post routes remain blocked by native route policy.
+- Generic `/reels/...` surfaces remain blocked while individual `/reel/...` routes are allowed only in the active DM-originated Reel flow. Page-side history hooks and AndroidX WebKit same-document navigation callbacks provide two layers of route enforcement.
 - WebView darkening is best-effort and depends on Android System WebView support; Instagram can override or ignore web appearance settings.
 - Some features available in Instagram's native app may not be supported in Instagram Web.
 - Instagram may require extra verification or restrict unusual sessions.

@@ -22,6 +22,24 @@ class InstagramWebViewClient(
 ) : WebViewClient() {
     private val dmReelNavigationGuard = DmReelNavigationGuard()
 
+    /**
+     * Receives modern Jetpack WebKit navigation callbacks, including
+     * same-document SPA navigations such as history.pushState/replaceState.
+     *
+     * This is a second line of defense behind the synchronous page-side
+     * history hook in InstagramUiShield.
+     */
+    fun handleNavigationStarted(view: WebView, url: String) {
+        dmReelNavigationGuard.redirectTarget(url)?.let { returnTo ->
+            if (returnTo != url) view.loadUrl(returnTo)
+            return
+        }
+
+        if (InstagramRoutes.isBlocked(url) && !InstagramRoutes.isInboxUrl(view.url)) {
+            view.loadUrl(InstagramRoutes.DM_INBOX)
+        }
+    }
+
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         if (!request.isForMainFrame) return false
         dmReelNavigationGuard.redirectTarget(view.url)

@@ -9,7 +9,6 @@ data class WellbeingSettings(
     val quietHoursStart: String = "23:00",
     val quietHoursEnd: String = "07:00",
     val dopamineFreeUi: Boolean = false,
-    val ghostMode: Boolean = false,
 ) {
     fun isQuietHoursActive(now: String = currentTime()): Boolean {
         if (!quietHoursEnabled) return false
@@ -26,7 +25,6 @@ data class WellbeingSettings(
         private const val QUIET_START = "quiet_hours_start"
         private const val QUIET_END = "quiet_hours_end"
         private const val DOPAMINE_FREE = "dopamine_free_ui"
-        private const val GHOST_MODE = "ghost_mode"
 
         fun load(context: Context): WellbeingSettings {
             val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -35,7 +33,6 @@ data class WellbeingSettings(
                 quietHoursStart = p.getString(QUIET_START, "23:00") ?: "23:00",
                 quietHoursEnd = p.getString(QUIET_END, "07:00") ?: "07:00",
                 dopamineFreeUi = p.getBoolean(DOPAMINE_FREE, false),
-                ghostMode = p.getBoolean(GHOST_MODE, false),
             )
         }
 
@@ -45,7 +42,6 @@ data class WellbeingSettings(
                 .putString(QUIET_START, settings.quietHoursStart)
                 .putString(QUIET_END, settings.quietHoursEnd)
                 .putBoolean(DOPAMINE_FREE, settings.dopamineFreeUi)
-                .putBoolean(GHOST_MODE, settings.ghostMode)
                 .apply()
         }
 

@@ -40,7 +40,6 @@ fun InstagramWebView(
     reloadToken: Int = 0,
     darkAppearance: Boolean,
     dopamineFreeUi: Boolean = false,
-    ghostMode: Boolean = false,
     onWebViewReady: (WebView?) -> Unit,
     onLoadingChanged: (Boolean) -> Unit,
     onError: (String) -> Unit,
@@ -132,7 +131,6 @@ fun InstagramWebView(
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
                     val client = InstagramWebViewClient(
-                        ghostMode = ghostMode,
                         dopamineFreeUi = dopamineFreeUi,
                         onLoadingChanged = latestOnLoading,
                         onMainFrameError = latestOnError,
@@ -176,7 +174,6 @@ fun InstagramWebView(
                 onWebViewReady(it)
                 applyWebAppearance(it, darkAppearance)
                 (it.webViewClient as? InstagramWebViewClient)?.apply {
-                    setGhostMode(ghostMode)
                     setDopamineFreeUi(dopamineFreeUi)
                 }
                 InstagramUiShield.install(it, dopamineFreeUi)

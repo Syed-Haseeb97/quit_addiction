@@ -225,7 +225,6 @@ private fun DMsOnlyApp(
                         reloadToken = reloadToken,
                         darkAppearance = darkWebAppearance,
                         dopamineFreeUi = wellbeingSettings.dopamineFreeUi,
-                        ghostMode = wellbeingSettings.ghostMode,
                         onWebViewReady = {
                             webView = it
                             onWebViewReady(it)
@@ -400,16 +399,6 @@ private fun WellbeingDialog(
                     Switch(
                         checked = settings.dopamineFreeUi,
                         onCheckedChange = { onSettingsChange(settings.copy(dopamineFreeUi = it)) }
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Ghost Mode (experimental)")
-                        Text("Attempt to suppress Seen/Typing requests. Not guaranteed by Instagram Web.")
-                    }
-                    Switch(
-                        checked = settings.ghostMode,
-                        onCheckedChange = { onSettingsChange(settings.copy(ghostMode = it)) }
                     )
                 }
             }

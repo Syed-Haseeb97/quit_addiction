@@ -45,7 +45,8 @@ The app is a native Kotlin Android shell around Instagram's website:
 - `InstagramWebViewClient` handles route policy, external links, page errors, SSL errors, and renderer-process errors.
 - `InstagramRoutes` contains the route allow/block rules and a single navigation decision policy. `/` is allowed as the Stories-bearing Home surface, while Feed post routes remain blocked.
 - `InstagramBackNavigation` skips blocked destinations when the Android Back button walks WebView history.
-- `InstagramUiShield` hides Home Feed articles and post links while preserving the Story row, guards blocked SPA routes, and is injected at document start when supported by AndroidX WebKit (with a page-finish fallback).
+- `InstagramUiShield` uses persistent CSS to hide Home Feed articles and post links while preserving the Story row; it does not repeatedly mutate Feed nodes. Its SPA route guard preserves DM-originated individual Reel viewing and blocks generic Reels transitions.
+- `DmReelNavigationGuard` tracks only the active WebView's current DM-originated Reel session and returns generic `/reels/...` transitions to the most recently allowed `/reel/...` item. The page-level transient marker is stored in WebView `sessionStorage` and cleared when leaving the individual Reel flow; it contains only route state, not account data.
 - Appearance selection is stored locally as a single preference; Compose system bars and WebView darkening follow the selected mode where supported by the installed Android System WebView.
 - `InstagramWebChromeClient` connects web file selection to Android's system document picker.
 
@@ -322,6 +323,7 @@ adb logcat | Select-String -Pattern "chromium|WebView|dmsonly"
 │               ├── ui/theme/AppearanceModeTest.kt
 │               └── web/
 │                   ├── InstagramBackNavigationTest.kt
+│                   ├── DmReelNavigationGuardTest.kt
 │                   ├── InstagramRoutesTest.kt
 │                   └── InstagramUiShieldTest.kt
 ├── build.gradle.kts
@@ -431,13 +433,13 @@ Use this checklist after a build or after changing WebView behavior.
 
 - This is a WebView wrapper around Instagram's website, not an official Instagram client.
 - Instagram can change its website DOM, routes, login process, and WebView compatibility without notice.
-- Home Feed article hiding depends on Instagram's DOM structure and may need maintenance after website updates; direct Feed post routes remain blocked by native route policy.
+- Home Feed article hiding depends on Instagram rendering posts inside `main article` or `[role="article"]`; CSS hides those surfaces without mutating/replacing post nodes or observing every DOM mutation. Changed markup may need maintenance; direct Feed post routes remain blocked by native route policy.
 - Generic `/reels/...` surfaces remain blocked while individual `/reel/...` routes are allowed to preserve DM-shared Reel viewing. Instagram may change how it routes either surface.
 - WebView darkening is best-effort and depends on Android System WebView support; Instagram can override or ignore web appearance settings.
 - Some features available in Instagram's native app may not be supported in Instagram Web.
 - Instagram may require extra verification or restrict unusual sessions.
 - The repository's CI workflow runs unit tests and assembles a debug APK, but a successful CI result should be confirmed in the repository's **Actions** tab after a push.
-- This feature update has not been runtime-tested on a physical device or emulator by the coding environment. Earlier user-provided device observations confirmed the existing DM Reel and Story behavior, but do not verify this updated build.
+- This follow-up fix has not been runtime-tested on a physical device or emulator by the coding environment. The reported S21 FE behavior describes the preceding APK; it does not verify this updated build.
 
 ## What this app intentionally does not do
 

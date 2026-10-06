@@ -20,9 +20,15 @@ class InstagramWebViewClient(
     private val onMainFrameRecovered: () -> Unit,
     private val onRendererGone: () -> Unit,
 ) : WebViewClient() {
+    private val dmReelNavigationGuard = DmReelNavigationGuard()
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         if (!request.isForMainFrame) return false
+        dmReelNavigationGuard.redirectTarget(view.url)
+        dmReelNavigationGuard.redirectTarget(request.url.toString())?.let { returnTo ->
+            view.loadUrl(returnTo)
+            return true
+        }
         return when (val decision = InstagramRoutes.decide(request.url)) {
             Decision.Allow -> false
             Decision.Block -> true
@@ -38,6 +44,10 @@ class InstagramWebViewClient(
     }
 
     override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+        dmReelNavigationGuard.redirectTarget(url)?.let { returnTo ->
+            view.loadUrl(returnTo)
+            return
+        }
         if (InstagramRoutes.isBlocked(url) && !InstagramRoutes.isInboxUrl(view.url)) {
             view.loadUrl(InstagramRoutes.DM_INBOX)
         }
@@ -45,6 +55,15 @@ class InstagramWebViewClient(
     }
 
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+        val history = view.copyBackForwardList()
+        dmReelNavigationGuard.restoreFromHistory(
+            (0..history.currentIndex).map { history.getItemAtIndex(it).url },
+            history.currentIndex
+        )
+        dmReelNavigationGuard.redirectTarget(url)?.let { returnTo ->
+            view.loadUrl(returnTo)
+            return
+        }
         onLoadingChanged(true)
         super.onPageStarted(view, url, favicon)
     }

@@ -18,6 +18,8 @@ object InstagramUiShield {
 
     private fun buildScript(): String {
         val css = listOf(
+            """html[data-dms-only-home="true"] main article""",
+            """html[data-dms-only-home="true"] main [role="article"]""",
             """a[href^="/explore"]""",
             """a[href^="/reels"]""",
             """a[href^="/feed"]""",
@@ -60,8 +62,24 @@ object InstagramUiShield {
   var BLOCKED_FIRST_SEGMENTS = [__BLOCKED_SEGMENTS__];
   var FEED_HOSTS = [__FEED_HOSTS__];
   var STYLE_ID = "dms-only-shield-style";
-  var HIDDEN_ATTRIBUTE = "data-dms-only-feed-hidden";
   var CSS = __CSS__;
+  var lastRoutePath = location.pathname;
+  var dmReelContextActive = false;
+  var lastDmReelUrl = null;
+  var REEL_CONTEXT_KEY = "dms-only-dm-reel-context";
+  var LAST_REEL_URL_KEY = "dms-only-last-dm-reel-url";
+
+  try {
+    dmReelContextActive = sessionStorage.getItem(REEL_CONTEXT_KEY) === "1";
+    lastDmReelUrl = sessionStorage.getItem(LAST_REEL_URL_KEY);
+    var referrer = new URL(document.referrer);
+    if (isDirectPath(referrer.pathname) && isIndividualReelPath(lastRoutePath)) {
+      dmReelContextActive = true;
+      lastDmReelUrl = location.href;
+      sessionStorage.setItem(REEL_CONTEXT_KEY, "1");
+      sessionStorage.setItem(LAST_REEL_URL_KEY, lastDmReelUrl);
+    }
+  } catch (e) {}
 
   function isBlockedPath(path) {
     var parts = String(path).split("/").filter(function (s) { return s.length > 0; });
@@ -80,34 +98,102 @@ object InstagramUiShield {
     }
   }
 
+  function isDirectPath(path) {
+    return path === "/direct" || path.indexOf("/direct/") === 0;
+  }
+
+  function isIndividualReelPath(path) {
+    return path === "/reel" || path.indexOf("/reel/") === 0;
+  }
+
+  function isGenericReelsPath(path) {
+    return path === "/reels" || path.indexOf("/reels/") === 0;
+  }
+
+  function clearDmReelContext() {
+    dmReelContextActive = false;
+    lastDmReelUrl = null;
+    try {
+      sessionStorage.removeItem(REEL_CONTEXT_KEY);
+      sessionStorage.removeItem(LAST_REEL_URL_KEY);
+    } catch (e) {}
+  }
+
+  function rememberDmReelUrl(url) {
+    lastDmReelUrl = url;
+    try {
+      sessionStorage.setItem(REEL_CONTEXT_KEY, "1");
+      sessionStorage.setItem(LAST_REEL_URL_KEY, url);
+    } catch (e) {}
+  }
+
+  function routeTransitionBlocked(raw) {
+    try {
+      var target = new URL(String(raw), location.href);
+      if (FEED_HOSTS.indexOf(target.hostname.toLowerCase()) === -1) return false;
+
+      if (isDirectPath(lastRoutePath) && isIndividualReelPath(target.pathname)) {
+        dmReelContextActive = true;
+        rememberDmReelUrl(target.href);
+        return false;
+      }
+      if (isIndividualReelPath(target.pathname) && !dmReelContextActive) {
+        goInbox();
+        return true;
+      }
+      if (dmReelContextActive && isIndividualReelPath(target.pathname)) {
+        rememberDmReelUrl(target.href);
+        return false;
+      }
+      if (dmReelContextActive && isGenericReelsPath(target.pathname)) {
+        returnToDmReel();
+        return true;
+      }
+      if (dmReelContextActive && !isIndividualReelPath(target.pathname)) {
+        clearDmReelContext();
+      }
+      if (isBlockedUrl(target.href)) {
+        goInbox();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function updateRouteState() {
+    var currentPath = location.pathname;
+    if (isDirectPath(lastRoutePath) && isIndividualReelPath(currentPath)) {
+      dmReelContextActive = true;
+      rememberDmReelUrl(location.href);
+    } else if (dmReelContextActive && isIndividualReelPath(currentPath)) {
+      rememberDmReelUrl(location.href);
+    } else if (dmReelContextActive && isGenericReelsPath(currentPath)) {
+      returnToDmReel();
+      return;
+    } else if (dmReelContextActive) {
+      clearDmReelContext();
+    }
+    lastRoutePath = currentPath;
+  }
+
   function isHomePath() {
     return FEED_HOSTS.indexOf(location.hostname.toLowerCase()) !== -1 &&
       (location.pathname === "/" || location.pathname === "");
   }
 
-  function hideFeedPosts() {
-    if (isHomePath()) {
-      document.querySelectorAll("main article, main [role='article']").forEach(function (post) {
-        post.setAttribute(HIDDEN_ATTRIBUTE, "true");
-        post.style.setProperty("display", "none", "important");
-      });
-    }
-
-    document.querySelectorAll("a[href^='/p/'], a[href^='/tv/']").forEach(function (link) {
-      link.setAttribute(HIDDEN_ATTRIBUTE, "true");
-      link.style.setProperty("display", "none", "important");
-      var post = link.closest("article, [role='article']");
-      if (post) {
-        post.setAttribute(HIDDEN_ATTRIBUTE, "true");
-        post.style.setProperty("display", "none", "important");
-      }
-    });
-  }
-
   function applyShield() {
-    ensureObserver();
+    updateRouteState();
     installStyle();
-    hideFeedPosts();
+    var homeValue = isHomePath() ? "true" : null;
+    if (document.documentElement.getAttribute("data-dms-only-home") !== homeValue) {
+      if (homeValue) {
+        document.documentElement.setAttribute("data-dms-only-home", homeValue);
+      } else {
+        document.documentElement.removeAttribute("data-dms-only-home");
+      }
+    }
     guardLocation();
   }
 
@@ -115,22 +201,25 @@ object InstagramUiShield {
     if (location.href !== INBOX_URL) location.replace(INBOX_URL);
   }
 
+  function returnToDmReel() {
+    if (lastDmReelUrl) location.replace(lastDmReelUrl);
+    else goInbox();
+  }
+
   document.addEventListener("click", function (event) {
     var target = event.target;
     var anchor = target && target.closest ? target.closest("a[href]") : null;
-    if (anchor && isBlockedUrl(anchor.getAttribute("href"))) {
+    if (anchor && routeTransitionBlocked(anchor.getAttribute("href"))) {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      goInbox();
     }
   }, true);
 
   ["pushState", "replaceState"].forEach(function (name) {
     var original = history[name];
     history[name] = function (state, title, url) {
-      if (url !== undefined && url !== null && isBlockedUrl(url)) {
-        goInbox();
+      if (url !== undefined && url !== null && routeTransitionBlocked(url)) {
         return;
       }
       var result = original.apply(this, arguments);
@@ -140,15 +229,14 @@ object InstagramUiShield {
   });
 
   function guardLocation() {
-    if (isBlockedUrl(location.href)) goInbox();
+    if (!isBlockedUrl(location.href)) return;
+    if (dmReelContextActive && isGenericReelsPath(location.pathname)) returnToDmReel();
+    else goInbox();
   }
 
   window.addEventListener("popstate", applyShield);
 
-  var pending = false;
-
   function installStyle() {
-    pending = false;
     if (document.getElementById(STYLE_ID)) return;
     var root = document.head || document.documentElement;
     if (!root) return;
@@ -156,21 +244,6 @@ object InstagramUiShield {
     style.id = STYLE_ID;
     style.textContent = CSS;
     root.appendChild(style);
-  }
-
-  function scheduleStyle() {
-    if (pending) return;
-    pending = true;
-    setTimeout(applyShield, 100);
-  }
-
-  function ensureObserver() {
-    if (!document.documentElement || window.__DM_ONLY_OBSERVER__) return;
-    window.__DM_ONLY_OBSERVER__ = new MutationObserver(scheduleStyle);
-    window.__DM_ONLY_OBSERVER__.observe(
-      document.documentElement,
-      { childList: true, subtree: true }
-    );
   }
 
   window.__DM_ONLY_APPLY__ = applyShield;

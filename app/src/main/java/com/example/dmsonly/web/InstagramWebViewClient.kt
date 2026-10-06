@@ -31,7 +31,7 @@ class InstagramWebViewClient(
                 true
             }
             is Decision.OpenExternally -> {
-                openExternal(view, decision.uri)
+                openExternal(view, Uri.parse(decision.url))
                 true
             }
         }

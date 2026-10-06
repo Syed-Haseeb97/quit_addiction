@@ -36,7 +36,7 @@ object InstagramRoutes {
     fun decide(uri: Uri): Decision = when {
         isInstagramHost(uri) && isBlocked(uri) -> Decision.Redirect(DM_INBOX)
         isInstagramHost(uri) -> Decision.Allow
-        uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(uri)
+        uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(uri.toString())
         else -> Decision.Block
     }
 
@@ -44,9 +44,7 @@ object InstagramRoutes {
         when {
             isInstagramHost(uri.host) && isBlockedPath(uri.path) -> Decision.Redirect(DM_INBOX)
             isInstagramHostName(uri.host) -> Decision.Allow
-            uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(
-                Uri.parse(uri.toString())
-            )
+            uri.scheme == "http" || uri.scheme == "https" -> Decision.OpenExternally(uri.toString())
             else -> Decision.Block
         }
     }
@@ -77,6 +75,6 @@ object InstagramRoutes {
         data object Allow : Decision
         data object Block : Decision
         data class Redirect(val url: String) : Decision
-        data class OpenExternally(val uri: Uri) : Decision
+        data class OpenExternally(val url: String) : Decision
     }
 }

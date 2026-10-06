@@ -3,122 +3,149 @@ package com.example.dmsonly.web
 import android.webkit.WebView
 
 /**
- * Single maintenance point for the DOM/CSS shield.
+ * DOM/CSS shielding is deliberately isolated here.
  *
- * URL-based selectors are preferred because Instagram's markup changes often.
- * Update SELECTORS or the semantic fallback below if Instagram changes its UI.
+ * URL-level blocking in InstagramRoutes/WebViewClient remains authoritative;
+ * this shield only removes tempting Feed/Explore/Reels controls from the UI.
  */
 object InstagramUiShield {
 
+    val script: String by lazy { buildScript() }
+
     fun install(webView: WebView) {
-        webView.evaluateJavascript(SCRIPT, null)
+        webView.evaluateJavascript(script, null)
     }
 
-    private val SCRIPT = """
-        (function () {
-          'use strict';
+    private fun buildScript(): String {
+        val css = listOf(
+            """a[href="/"]""",
+            """a[href^="/?"]""",
+            """a[href="https://www.instagram.com/"]""",
+            """a[href^="/explore"]""",
+            """a[href^="/reels"]""",
+            """a[aria-label="Home"]""",
+            """a[aria-label="Explore"]""",
+            """a[aria-label="Search and explore"]""",
+            """a[aria-label="Reels"]"""
+        ).joinToString(",\n") { it } + " { display: none !important; }"
 
-          if (window.__DM_ONLY_SHIELD_INSTALLED__) {
-            if (window.__DM_ONLY_APPLY_SHIELD__) window.__DM_ONLY_APPLY_SHIELD__();
-            return;
-          }
+        val segments = InstagramRoutes.BLOCKED_FIRST_SEGMENTS
+            .joinToString(",") { ""$it"" }
 
-          const DM_INBOX = 'https://www.instagram.com/direct/inbox/';
+        val hosts = InstagramRoutes.FEED_HOSTS
+            .joinToString(",") { ""$it"" }
 
-          // Maintenance point: these selectors target Feed, Explore and Reels links.
-          const SELECTORS = [
-            'a[href="/explore/"]',
-            'a[href^="/explore/"]',
-            'a[href="/reels/"]',
-            'a[href^="/reels/"]',
-            'a[href="/"]',
-            'a[href="https://www.instagram.com/"]',
-            'a[aria-label="Explore"]',
-            'a[aria-label="Reels"]',
-            '[role="link"][aria-label="Explore"]',
-            '[role="link"][aria-label="Reels"]'
-          ];
+        return TEMPLATE
+            .replace("__INBOX_URL__", InstagramRoutes.DM_INBOX)
+            .replace("__BLOCKED_SEGMENTS__", segments)
+            .replace("__FEED_HOSTS__", hosts)
+            .replace("__CSS__", jsString(css))
+    }
 
-          function instagramPath() {
-            if (location.hostname !== 'instagram.com' &&
-                location.hostname !== 'www.instagram.com') return null;
-            return location.pathname.replace(//+$/, '') || '/';
-          }
+    private fun jsString(value: String): String =
+        """ + value
+            .replace("\\", "\\\\")
+            .replace(""", "\"")
+            .replace("
+", "\\n") + """
 
-          function isBlockedPath(path) {
-            if (!path) return false;
-            return path === '/' ||
-                   path === '/explore' ||
-                   path.indexOf('/explore/') === 0 ||
-                   path === '/reels' ||
-                   path.indexOf('/reels/') === 0;
-          }
+    private const val TEMPLATE = """
+(function () {
+  "use strict";
+  if (window.top !== window) return;
+  if (window.__DM_ONLY_SHIELD__) {
+    if (window.__DM_ONLY_APPLY__) window.__DM_ONLY_APPLY__();
+    return;
+  }
 
-          function routeBackIfBlocked() {
-            if (isBlockedPath(instagramPath()) && location.href !== DM_INBOX) {
-              location.replace(DM_INBOX);
-            }
-          }
+  var INBOX_URL = "__INBOX_URL__";
+  var BLOCKED_FIRST_SEGMENTS = [__BLOCKED_SEGMENTS__];
+  var FEED_HOSTS = [__FEED_HOSTS__];
+  var STYLE_ID = "dms-only-shield-style";
+  var CSS = __CSS__;
 
-          function applyShield() {
-            SELECTORS.forEach(function (selector) {
-              document.querySelectorAll(selector).forEach(function (node) {
-                node.style.setProperty('display', 'none', 'important');
-                node.setAttribute('data-dm-only-hidden', 'true');
-              });
-            });
+  function isBlockedPath(path) {
+    var parts = String(path).split("/").filter(function (s) { return s.length > 0; });
+    if (parts.length === 0) return true;
+    var first = parts[0];
+    try { first = decodeURIComponent(first); } catch (e) {}
+    return BLOCKED_FIRST_SEGMENTS.indexOf(first.toLowerCase()) !== -1;
+  }
 
-            // Semantic fallback for markup variants/localized navigation.
-            document.querySelectorAll('[role="link"], a').forEach(function (node) {
-              const label = (node.getAttribute('aria-label') || node.textContent || '')
-                .trim().toLowerCase();
+  function isBlockedUrl(raw) {
+    try {
+      var u = new URL(String(raw), location.href);
+      return FEED_HOSTS.indexOf(u.hostname.toLowerCase()) !== -1 && isBlockedPath(u.pathname);
+    } catch (e) {
+      return false;
+    }
+  }
 
-              if (label === 'explore' || label === 'reels') {
-                node.style.setProperty('display', 'none', 'important');
-                node.setAttribute('data-dm-only-hidden', 'true');
-              }
-            });
+  function goInbox() {
+    if (location.href !== INBOX_URL) location.replace(INBOX_URL);
+  }
 
-            routeBackIfBlocked();
-          }
+  document.addEventListener("click", function (event) {
+    var target = event.target;
+    var anchor = target && target.closest ? target.closest("a[href]") : null;
+    if (anchor && isBlockedUrl(anchor.getAttribute("href"))) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      goInbox();
+    }
+  }, true);
 
-          const originalPushState = history.pushState;
-          history.pushState = function () {
-            const result = originalPushState.apply(history, arguments);
-            queueMicrotask(routeBackIfBlocked);
-            queueMicrotask(applyShield);
-            return result;
-          };
+  ["pushState", "replaceState"].forEach(function (name) {
+    var original = history[name];
+    history[name] = function (state, title, url) {
+      if (url !== undefined && url !== null && isBlockedUrl(url)) {
+        goInbox();
+        return;
+      }
+      return original.apply(this, arguments);
+    };
+  });
 
-          const originalReplaceState = history.replaceState;
-          history.replaceState = function () {
-            const result = originalReplaceState.apply(history, arguments);
-            queueMicrotask(routeBackIfBlocked);
-            queueMicrotask(applyShield);
-            return result;
-          };
+  function guardLocation() {
+    if (isBlockedUrl(location.href)) goInbox();
+  }
 
-          window.addEventListener('popstate', routeBackIfBlocked, { passive: true });
+  window.addEventListener("popstate", guardLocation);
 
-          let pending = false;
-          const observer = new MutationObserver(function () {
-            if (pending) return;
-            pending = true;
-            requestAnimationFrame(function () {
-              pending = false;
-              applyShield();
-            });
-          });
+  var pending = false;
 
-          observer.observe(document.documentElement, {
-            subtree: true,
-            childList: true
-          });
+  function installStyle() {
+    pending = false;
+    if (document.getElementById(STYLE_ID)) return;
+    var root = document.head || document.documentElement;
+    if (!root) return;
+    var style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = CSS;
+    root.appendChild(style);
+  }
 
-          window.__DM_ONLY_APPLY_SHIELD__ = applyShield;
-          window.__DM_ONLY_SHIELD_INSTALLED__ = true;
+  function scheduleStyle() {
+    if (pending) return;
+    pending = true;
+    setTimeout(installStyle, 100);
+  }
 
-          applyShield();
-        })();
-    """.trimIndent()
+  var observer = new MutationObserver(scheduleStyle);
+  if (document.documentElement) {
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  window.__DM_ONLY_APPLY__ = function () {
+    installStyle();
+    guardLocation();
+  };
+  window.__DM_ONLY_SHIELD__ = true;
+
+  installStyle();
+  guardLocation();
+})();
+"""
+
 }

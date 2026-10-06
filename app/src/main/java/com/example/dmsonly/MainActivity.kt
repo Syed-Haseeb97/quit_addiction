@@ -49,6 +49,7 @@ import com.example.dmsonly.web.InstagramBackNavigation
 import com.example.dmsonly.web.InstagramWebView
 import com.example.dmsonly.web.clearInstagramSession
 
+
 private const val WEBVIEW_STATE_KEY = "webview_state"
 private const val APPEARANCE_PREFERENCES = "appearance_preferences"
 private const val APPEARANCE_MODE_KEY = "appearance_mode"
@@ -92,6 +93,9 @@ class MainActivity : ComponentActivity() {
                     )
                 )
             }
+            var wellbeingSettings by remember {
+                mutableStateOf(WellbeingSettings.load(this@MainActivity))
+            }
             DMsOnlyTheme(appearanceMode = appearanceMode) {
                 DMsOnlyApp(
                     initialWebViewState = restoredWebViewState,
@@ -102,6 +106,10 @@ class MainActivity : ComponentActivity() {
                             .edit()
                             .putString(APPEARANCE_MODE_KEY, mode.name)
                             .apply()
+                    },
+                    onWellbeingSettingsChange = { settings ->
+                        wellbeingSettings = settings
+                        WellbeingSettings.save(this@MainActivity, settings)
                     },
                     onWebViewReady = { activeWebView = it }
                 )
@@ -124,7 +132,9 @@ class MainActivity : ComponentActivity() {
 private fun DMsOnlyApp(
     initialWebViewState: Bundle?,
     appearanceMode: AppearanceMode,
+    wellbeingSettings: WellbeingSettings,
     onAppearanceModeChange: (AppearanceMode) -> Unit,
+    onWellbeingSettingsChange: (WellbeingSettings) -> Unit,
     onWebViewReady: (WebView) -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }

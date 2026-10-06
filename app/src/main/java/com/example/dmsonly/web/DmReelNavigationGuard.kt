@@ -25,7 +25,7 @@ internal class DmReelNavigationGuard {
     fun redirectTarget(nextUrl: String?): String? {
         val target = nextUrl ?: return null
         val targetUri = runCatching { URI(target) }.getOrNull()
-        if (!isInstagramHost(targetUri?.host)) {
+        if (targetUri == null || !isInstagramHost(targetUri.host)) {
             dmReelContextActive = false
             lastDmReelUrl = null
             lastObservedUrl = target

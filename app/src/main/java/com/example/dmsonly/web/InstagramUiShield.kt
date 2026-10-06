@@ -6,7 +6,7 @@ import android.webkit.WebView
  * DOM/CSS shielding is deliberately isolated here.
  *
  * URL-level blocking in InstagramRoutes/WebViewClient remains authoritative;
- * this shield only removes tempting Feed/Explore/Reels controls from the UI.
+ * this shield removes Feed/Explore/Reels controls from Instagram's UI.
  */
 object InstagramUiShield {
 
@@ -27,13 +27,13 @@ object InstagramUiShield {
             """a[aria-label="Explore"]""",
             """a[aria-label="Search and explore"]""",
             """a[aria-label="Reels"]"""
-        ).joinToString(",\n") { it } + " { display: none !important; }"
+        ).joinToString(",\n") + " { display: none !important; }"
 
         val segments = InstagramRoutes.BLOCKED_FIRST_SEGMENTS
-            .joinToString(",") { ""$it"" }
+            .joinToString(",") { "\"" + it + "\"" }
 
         val hosts = InstagramRoutes.FEED_HOSTS
-            .joinToString(",") { ""$it"" }
+            .joinToString(",") { "\"" + it + "\"" }
 
         return TEMPLATE
             .replace("__INBOX_URL__", InstagramRoutes.DM_INBOX)
@@ -43,11 +43,10 @@ object InstagramUiShield {
     }
 
     private fun jsString(value: String): String =
-        """ + value
+        "\"" + value
             .replace("\\", "\\\\")
-            .replace(""", "\"")
-            .replace("
-", "\\n") + """
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n") + "\""
 
     private const val TEMPLATE = """
 (function () {
@@ -132,9 +131,11 @@ object InstagramUiShield {
     setTimeout(installStyle, 100);
   }
 
-  var observer = new MutationObserver(scheduleStyle);
   if (document.documentElement) {
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    new MutationObserver(scheduleStyle).observe(
+      document.documentElement,
+      { childList: true, subtree: true }
+    );
   }
 
   window.__DM_ONLY_APPLY__ = function () {
@@ -147,5 +148,4 @@ object InstagramUiShield {
   guardLocation();
 })();
 """
-
 }

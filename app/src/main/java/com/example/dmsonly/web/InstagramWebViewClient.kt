@@ -16,13 +16,26 @@ import java.io.ByteArrayInputStream
 import com.example.dmsonly.web.InstagramRoutes.Decision
 
 class InstagramWebViewClient(
-    private val ghostMode: Boolean = false,
+    ghostMode: Boolean = false,
+    dopamineFreeUi: Boolean = false,
     private val onLoadingChanged: (Boolean) -> Unit,
     private val onMainFrameError: (String) -> Unit,
     private val onMainFrameRecovered: () -> Unit,
     private val onRendererGone: () -> Unit,
 ) : WebViewClient() {
     private val dmReelNavigationGuard = DmReelNavigationGuard()
+    @Volatile
+    private var ghostModeEnabled = ghostMode
+    @Volatile
+    private var dopamineFreeUiEnabled = dopamineFreeUi
+
+    fun setGhostMode(enabled: Boolean) {
+        ghostModeEnabled = enabled
+    }
+
+    fun setDopamineFreeUi(enabled: Boolean) {
+        dopamineFreeUiEnabled = enabled
+    }
 
     /**
      * Receives modern Jetpack WebKit navigation callbacks, including
@@ -46,7 +59,7 @@ class InstagramWebViewClient(
         view: WebView,
         request: WebResourceRequest
     ): WebResourceResponse? {
-        if (ghostMode && InstagramRoutes.isInstagramHost(request.url) && isGhostEndpoint(request.url)) {
+        if (ghostModeEnabled && InstagramRoutes.isInstagramHost(request.url) && isGhostEndpoint(request.url)) {
             return WebResourceResponse(
                 "text/plain",
                 "UTF-8",
@@ -112,7 +125,7 @@ class InstagramWebViewClient(
 
     override fun onPageFinished(view: WebView, url: String?) {
         if (runCatching { InstagramRoutes.isInstagramHost(Uri.parse(url ?: "")) }.getOrDefault(false)) {
-            InstagramUiShield.install(view)
+            InstagramUiShield.install(view, dopamineFreeUiEnabled)
         }
         onLoadingChanged(false)
         onMainFrameRecovered()

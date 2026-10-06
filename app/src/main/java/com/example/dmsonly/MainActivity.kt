@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,13 +37,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import java.time.LocalTime
 import com.example.dmsonly.ui.theme.AppearanceMode
 import com.example.dmsonly.ui.theme.DMsOnlyTheme
 import com.example.dmsonly.web.InstagramBackNavigation
@@ -100,6 +101,7 @@ class MainActivity : ComponentActivity() {
                 DMsOnlyApp(
                     initialWebViewState = restoredWebViewState,
                     appearanceMode = appearanceMode,
+                    wellbeingSettings = wellbeingSettings,
                     onAppearanceModeChange = { mode ->
                         appearanceMode = mode
                         getSharedPreferences(APPEARANCE_PREFERENCES, MODE_PRIVATE)
@@ -135,7 +137,7 @@ private fun DMsOnlyApp(
     wellbeingSettings: WellbeingSettings,
     onAppearanceModeChange: (AppearanceMode) -> Unit,
     onWellbeingSettingsChange: (WellbeingSettings) -> Unit,
-    onWebViewReady: (WebView) -> Unit
+    onWebViewReady: (WebView?) -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -145,10 +147,10 @@ private fun DMsOnlyApp(
     var showAppearanceDialog by remember { mutableStateOf(false) }
     var showWellbeingDialog by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var now by remember { mutableStateOf(LocalTime.now()) }
+    var now by remember { mutableStateOf(WellbeingSettings.currentTime()) }
     LaunchedEffect(wellbeingSettings.quietHoursEnabled, wellbeingSettings.quietHoursStart, wellbeingSettings.quietHoursEnd) {
         while (true) {
-            now = LocalTime.now()
+            now = WellbeingSettings.currentTime()
             delay(30_000)
         }
     }
@@ -389,7 +391,7 @@ private fun WellbeingDialog(
                         )
                     }
                 }
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Dopamine-Free UI")

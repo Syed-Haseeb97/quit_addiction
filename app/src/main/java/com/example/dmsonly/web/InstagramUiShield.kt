@@ -44,6 +44,7 @@ object InstagramUiShield {
             .replace("__INBOX_URL__", InstagramRoutes.DM_INBOX)
             .replace("__BLOCKED_SEGMENTS__", segments)
             .replace("__FEED_HOSTS__", hosts)
+            .replace("__DOPAMINE_FREE__", dopamineFreeUi.toString())
             .replace("__CSS__", jsString(css))
     }
 
@@ -57,19 +58,23 @@ object InstagramUiShield {
 (function () {
   "use strict";
   if (window.top !== window) return;
-  if (window.__DM_ONLY_SHIELD__) {
-    if (window.__DM_ONLY_APPLY__) window.__DM_ONLY_APPLY__();
-    return;
-  }
-
   var INBOX_URL = "__INBOX_URL__";
   var BLOCKED_FIRST_SEGMENTS = [__BLOCKED_SEGMENTS__];
   var FEED_HOSTS = [__FEED_HOSTS__];
   var STYLE_ID = "dms-only-shield-style";
   var CSS = __CSS__;
+  var DOPAMINE_FREE_UI = __DOPAMINE_FREE__;
   var lastRoutePath = location.pathname;
   var dmReelContextActive = false;
   var lastDmReelUrl = null;
+
+  if (window.__DM_ONLY_SHIELD__) {
+    window.__DM_ONLY_DOPAMINE_FREE__ = DOPAMINE_FREE_UI;
+    var existingStyle = document.getElementById(STYLE_ID);
+    if (existingStyle) existingStyle.textContent = CSS;
+    if (window.__DM_ONLY_APPLY__) window.__DM_ONLY_APPLY__();
+    return;
+  }
 
   try {
     var referrer = new URL(document.referrer);
@@ -233,6 +238,7 @@ object InstagramUiShield {
 
   window.__DM_ONLY_APPLY__ = applyShield;
   window.__DM_ONLY_SHIELD__ = true;
+  window.__DM_ONLY_DOPAMINE_FREE__ = DOPAMINE_FREE_UI;
   applyShield();
 })();
 """

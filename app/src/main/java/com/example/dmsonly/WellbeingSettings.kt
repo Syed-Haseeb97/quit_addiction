@@ -1,9 +1,8 @@
 package com.example.dmsonly
 
 import android.content.Context
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
+import java.util.Calendar
+import java.util.Locale
 
 data class WellbeingSettings(
     val quietHoursEnabled: Boolean = false,
@@ -12,12 +11,13 @@ data class WellbeingSettings(
     val dopamineFreeUi: Boolean = false,
     val ghostMode: Boolean = false,
 ) {
-    fun isQuietHoursActive(now: LocalTime = LocalTime.now()): Boolean {
+    fun isQuietHoursActive(now: String = currentTime()): Boolean {
         if (!quietHoursEnabled) return false
         val start = parseTime(quietHoursStart) ?: return false
         val end = parseTime(quietHoursEnd) ?: return false
         if (start == end) return true
-        return if (start < end) now >= start && now < end else now >= start || now < end
+        val current = parseTime(now) ?: return false
+        return if (start < end) current >= start && current < end else current >= start || current < end
     }
 
     companion object {
@@ -27,8 +27,6 @@ data class WellbeingSettings(
         private const val QUIET_END = "quiet_hours_end"
         private const val DOPAMINE_FREE = "dopamine_free_ui"
         private const val GHOST_MODE = "ghost_mode"
-
-        private val formatter = DateTimeFormatter.ofPattern("HH:mm")
 
         fun load(context: Context): WellbeingSettings {
             val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -51,13 +49,27 @@ data class WellbeingSettings(
                 .apply()
         }
 
-        fun parseTime(value: String): LocalTime? = try {
-            LocalTime.parse(value, formatter)
-        } catch (_: DateTimeParseException) {
-            null
+        fun currentTime(): String {
+            val calendar = Calendar.getInstance()
+            return String.format(
+                Locale.ROOT,
+                "%02d:%02d",
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE)
+            )
+        }
+
+        fun parseTime(value: String): Int? {
+            val match = Regex("^(\\d{2}):(\\d{2})$").matchEntire(value.trim()) ?: return null
+            val hour = match.groupValues[1].toIntOrNull() ?: return null
+            val minute = match.groupValues[2].toIntOrNull() ?: return null
+            if (hour !in 0..23 || minute !in 0..59) return null
+            return hour * 60 + minute
         }
 
         fun normalizeTime(value: String): String? =
-            parseTime(value.trim())?.format(formatter)
+            parseTime(value.trim())?.let { minutes ->
+                String.format(Locale.ROOT, "%02d:%02d", minutes / 60, minutes % 60)
+            }
     }
 }

@@ -18,7 +18,7 @@ class InstagramUiShieldTest {
         assertTrue(script.contains("function isHomePath()"))
         assertFalse(script.contains("function hideFeedPosts()"))
         assertFalse(script.contains("new MutationObserver"))
-        assertFalse(script.contains("setProperty(\\\"display\\\", \\"none\\\""))
+        assertFalse(script.contains("setProperty(\\\"display\\\", \\\"none\\\""))
     }
 
     @Test

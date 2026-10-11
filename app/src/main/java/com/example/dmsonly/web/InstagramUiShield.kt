@@ -113,6 +113,13 @@ object InstagramUiShield {
     return path === "/reels" || path.indexOf("/reels/") === 0;
   }
 
+  function isFeedEscapePath(path) {
+    if (path === "/" || path === "") return true;
+    var first = String(path).split("/").filter(function (s) { return s.length > 0; })[0] || "";
+    try { first = decodeURIComponent(first); } catch (e) {}
+    return ["explore", "reels", "feed", "p", "tv"].indexOf(first.toLowerCase()) !== -1;
+  }
+
   function clearDmReelContext() {
     dmReelContextActive = false;
     lastDmReelUrl = null;
@@ -139,7 +146,7 @@ object InstagramUiShield {
         rememberDmReelUrl(target.href);
         return false;
       }
-      if (dmReelContextActive && isGenericReelsPath(target.pathname)) {
+      if (dmReelContextActive && isFeedEscapePath(target.pathname)) {
         returnToDmReel();
         return true;
       }
@@ -163,7 +170,7 @@ object InstagramUiShield {
       rememberDmReelUrl(location.href);
     } else if (dmReelContextActive && isIndividualReelPath(currentPath)) {
       rememberDmReelUrl(location.href);
-    } else if (dmReelContextActive && isGenericReelsPath(currentPath)) {
+    } else if (dmReelContextActive && isFeedEscapePath(currentPath)) {
       returnToDmReel();
       return;
     } else if (dmReelContextActive) {
@@ -221,9 +228,12 @@ object InstagramUiShield {
   window.addEventListener("hashchange", applyShield);
 
   function guardLocation() {
+    if (dmReelContextActive && isFeedEscapePath(location.pathname)) {
+      returnToDmReel();
+      return;
+    }
     if (!isBlockedUrl(location.href)) return;
-    if (dmReelContextActive && isGenericReelsPath(location.pathname)) returnToDmReel();
-    else goInbox();
+    goInbox();
   }
 
   function installStyle() {

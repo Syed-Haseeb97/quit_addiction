@@ -30,6 +30,9 @@ class InstagramUiShieldTest {
         assertTrue(script.contains("window.addEventListener(\"hashchange\", applyShield)"))
         assertTrue(script.contains("function isGenericReelsPath(path)"))
         assertTrue(script.contains("function routeTransitionBlocked(raw)"))
+        assertTrue(script.contains("dmReelTouchStart"))
+        assertTrue(script.contains("event.preventDefault()"))
+        assertTrue(script.contains("passive: false"))
         assertTrue(script.contains("function isBlockedUrl(raw)"))
     }
 

@@ -99,7 +99,7 @@ internal class DmReelNavigationGuard {
 
     private fun isFeedEscapePath(path: String?): Boolean {
         if (path == "/") return true
-        return path?.removePrefix("/")?.substringBefore("/")?.lowercase()
-            in setOf("explore", "reels", "feed", "p", "tv")
+        return (path?.removePrefix("/")?.substringBefore("/")?.lowercase()
+            in setOf("explore", "reels", "feed", "p", "tv"))
     }
 }

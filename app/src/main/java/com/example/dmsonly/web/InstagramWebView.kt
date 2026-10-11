@@ -202,6 +202,14 @@ fun InstagramWebView(
 
 @Suppress("DEPRECATION")
 private fun applyWebAppearance(webView: WebView, darkAppearance: Boolean) {
+    // Prefer an explicit web color scheme so Instagram's own CSS follows the in-app choice.
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.PREFERRED_COLOR_SCHEME)) {
+        WebSettingsCompat.setPreferredColorScheme(
+            webView.settings,
+            if (darkAppearance) WebSettingsCompat.PREFER_COLOR_SCHEME_DARK
+            else WebSettingsCompat.PREFER_COLOR_SCHEME_LIGHT
+        )
+    }
     if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
         WebSettingsCompat.setForceDark(
             webView.settings,

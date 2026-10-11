@@ -1,6 +1,8 @@
 package com.example.dmsonly
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import android.content.res.Configuration
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -51,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.delay
 import com.example.dmsonly.ui.theme.AppearanceMode
@@ -170,6 +173,18 @@ private fun DMsOnlyApp(
     var showClearDialog by remember { mutableStateOf(false) }
     var showAppearanceDialog by remember { mutableStateOf(false) }
     var showWellbeingDialog by remember { mutableStateOf(false) }
+    var checkingUpdates by remember { mutableStateOf(false) }
+    var updateCheckMessage by remember { mutableStateOf<String?>(null) }
+    var availableUpdate by remember { mutableStateOf<AvailableUpdate?>(null) }
+    val context = LocalContext.current
+    LaunchedEffect(checkingUpdates) {
+        if (checkingUpdates) {
+            val update = UpdateChecker.check(BuildConfig.VERSION_NAME)
+            availableUpdate = update
+            updateCheckMessage = if (update == null) "You're using the latest version." else null
+            checkingUpdates = false
+        }
+    }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var now by remember { mutableStateOf(WellbeingSettings.currentTime()) }
     LaunchedEffect(wellbeingSettings.quietHoursEnabled, wellbeingSettings.quietHoursStart, wellbeingSettings.quietHoursEnd) {
@@ -233,6 +248,14 @@ private fun DMsOnlyApp(
                                 onClick = {
                                     showMenu = false
                                     webView?.loadUrl(InstagramRoutes.DM_INBOX)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Check for updates") },
+                                onClick = {
+                                    showMenu = false
+                                    updateCheckMessage = null
+                                    checkingUpdates = true
                                 }
                             )
                             DropdownMenuItem(
@@ -307,6 +330,49 @@ private fun DMsOnlyApp(
                 }
             }
         }
+    }
+
+    if (checkingUpdates) {
+        AlertDialog(
+            onDismissRequest = { checkingUpdates = false },
+            title = { Text("Checking for updates") },
+            text = { Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Checking the latest official release…")
+            } },
+            confirmButton = {
+                TextButton(onClick = { checkingUpdates = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    availableUpdate?.let { update ->
+        AlertDialog(
+            onDismissRequest = { availableUpdate = null },
+            title = { Text("New version available") },
+            text = { Text("DMs Only ${update.version} is available. Open the official release page to update.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    availableUpdate = null
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
+                }) { Text("Update") }
+            },
+            dismissButton = {
+                TextButton(onClick = { availableUpdate = null }) { Text("Later") }
+            }
+        )
+    }
+
+    updateCheckMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { updateCheckMessage = null },
+            title = { Text("Updates") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { updateCheckMessage = null }) { Text("OK") }
+            }
+        )
     }
 
     if (showAppearanceDialog) {

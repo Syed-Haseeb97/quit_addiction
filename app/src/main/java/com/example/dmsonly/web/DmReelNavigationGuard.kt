@@ -2,6 +2,10 @@ package com.example.dmsonly.web
 
 import java.net.URI
 
+/**
+ * Keeps the temporary allowance for a Reel opened from a DM separate from
+ * the generic Reels/feed destinations. This is intentionally in-memory only.
+ */
 internal class DmReelNavigationGuard {
     private var lastObservedUrl: String? = null
     private var dmReelContextActive = false
@@ -22,43 +26,66 @@ internal class DmReelNavigationGuard {
         }
     }
 
+    /**
+     * Returns a safe destination when a navigation attempts to leave a
+     * DM-originated individual Reel for the generic feed/Explore/Reels surface.
+     *
+     * Callers may invoke this from multiple WebView navigation callbacks, so
+     * blocked transitions deliberately do not replace lastObservedUrl.
+     */
     fun redirectTarget(nextUrl: String?): String? {
         val target = nextUrl ?: return null
         val targetUri = runCatching { URI(target) }.getOrNull()
         if (targetUri == null || !isInstagramHost(targetUri.host)) {
-            dmReelContextActive = false
-            lastDmReelUrl = null
+            clearContext()
             lastObservedUrl = target
             return null
         }
+
+        val targetPath = normalizePath(targetUri.path)
         val previousPath = pathOf(lastObservedUrl)
-        val targetPath = targetUri.path?.replace(Regex("/+"), "/")?.trimEnd('/')
 
         if (isIndividualReelPath(targetPath)) {
             if (isDirectPath(previousPath)) dmReelContextActive = true
-            if (dmReelContextActive) {
-                lastDmReelUrl = target
-            } else {
+            if (!dmReelContextActive) {
                 lastObservedUrl = target
                 return InstagramRoutes.DM_INBOX
             }
-        } else if (isGenericReelsPath(targetPath) && dmReelContextActive) {
-            return lastDmReelUrl ?: InstagramRoutes.DM_INBOX
-        } else {
-            dmReelContextActive = false
-            lastDmReelUrl = null
+            lastDmReelUrl = target
+            lastObservedUrl = target
+            return null
         }
 
+        if (isFeedEscapePath(targetPath)) {
+            if (dmReelContextActive) {
+                return lastDmReelUrl ?: InstagramRoutes.DM_INBOX
+            }
+            // The native route policy handles blocked destinations. Keep the
+            // Home root available for Stories when no DM-Reel context exists.
+            lastObservedUrl = target
+            return null
+        }
+
+        clearContext()
         lastObservedUrl = target
         return null
+    }
+
+    private fun clearContext() {
+        dmReelContextActive = false
+        lastDmReelUrl = null
     }
 
     private fun pathOf(url: String?): String? =
         url?.let { runCatching { URI(it) }.getOrNull() }
             ?.takeIf { isInstagramHost(it.host) }
             ?.path
-            ?.replace(Regex("/+"), "/")
-            ?.trimEnd('/')
+            ?.let(::normalizePath)
+
+    private fun normalizePath(path: String?): String {
+        val value = path?.replace(Regex("/+"), "/")?.trimEnd('/')
+        return if (value.isNullOrEmpty()) "/" else value
+    }
 
     private fun isInstagramHost(host: String?): Boolean =
         host.equals("instagram.com", ignoreCase = true) ||
@@ -70,6 +97,9 @@ internal class DmReelNavigationGuard {
     private fun isIndividualReelPath(path: String?): Boolean =
         path == "/reel" || path?.startsWith("/reel/") == true
 
-    private fun isGenericReelsPath(path: String?): Boolean =
-        path == "/reels" || path?.startsWith("/reels/") == true
+    private fun isFeedEscapePath(path: String?): Boolean {
+        if (path == "/") return true
+        return path?.removePrefix("/")?.substringBefore("/")?.lowercase()
+            in setOf("explore", "reels", "feed", "p", "tv")
+    }
 }

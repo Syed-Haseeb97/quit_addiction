@@ -224,6 +224,39 @@ object InstagramUiShield {
     }
   }, true);
 
+  // The DM-shared individual Reel is allowed, but vertical gestures must not
+  // turn that entry point into an endless generic Reels feed.
+  var dmReelTouchStart = null;
+  document.addEventListener("touchstart", function (event) {
+    if (!dmReelContextActive || !isIndividualReelPath(location.pathname) ||
+        !event.touches || event.touches.length !== 1) {
+      dmReelTouchStart = null;
+      return;
+    }
+    dmReelTouchStart = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY
+    };
+  }, { capture: true, passive: true });
+
+  document.addEventListener("touchmove", function (event) {
+    if (!dmReelContextActive || !isIndividualReelPath(location.pathname) ||
+        !dmReelTouchStart || !event.touches || event.touches.length !== 1) return;
+    var dx = event.touches[0].clientX - dmReelTouchStart.x;
+    var dy = event.touches[0].clientY - dmReelTouchStart.y;
+    if (Math.abs(dy) < 22 || Math.abs(dy) <= Math.abs(dx)) return;
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  }, { capture: true, passive: false });
+
+  document.addEventListener("touchend", function () {
+    dmReelTouchStart = null;
+  }, true);
+  document.addEventListener("touchcancel", function () {
+    dmReelTouchStart = null;
+  }, true);
+
   window.addEventListener("popstate", applyShield);
   window.addEventListener("hashchange", applyShield);
 

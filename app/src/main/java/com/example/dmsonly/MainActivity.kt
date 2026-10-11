@@ -56,6 +56,7 @@ import kotlinx.coroutines.delay
 import com.example.dmsonly.ui.theme.AppearanceMode
 import com.example.dmsonly.ui.theme.DMsOnlyTheme
 import com.example.dmsonly.web.InstagramBackNavigation
+import com.example.dmsonly.web.InstagramRoutes
 import com.example.dmsonly.web.InstagramWebView
 import com.example.dmsonly.web.clearInstagramSession
 
@@ -225,6 +226,13 @@ private fun DMsOnlyApp(
                                     showMenu = false
                                     errorMessage = null
                                     reloadToken++
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Fix language (English)") },
+                                onClick = {
+                                    showMenu = false
+                                    webView?.loadUrl(InstagramRoutes.DM_INBOX)
                                 }
                             )
                             DropdownMenuItem(

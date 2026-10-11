@@ -24,6 +24,26 @@ class DmReelNavigationGuardTest {
     }
 
     @Test
+    fun dmReelSwipeCannotEscapeToHomeFeedOrFeedPostRoutes() {
+        val escapePaths = listOf(
+            "https://www.instagram.com/",
+            "https://www.instagram.com/feed/",
+            "https://www.instagram.com/p/postcode/",
+            "https://www.instagram.com/tv/video/",
+            "https://www.instagram.com/explore/"
+        )
+
+        escapePaths.forEach { url ->
+            val guard = DmReelNavigationGuard()
+            guard.redirectTarget(InstagramRoutes.DM_INBOX)
+            guard.redirectTarget("https://www.instagram.com/reel/shared/")
+            assertEquals("Escape route should return to last DM Reel: $url",
+                "https://www.instagram.com/reel/shared/",
+                guard.redirectTarget(url))
+        }
+    }
+
+    @Test
     fun leavingTheDmReelContextClearsItsAllowance() {
         val guard = DmReelNavigationGuard()
 

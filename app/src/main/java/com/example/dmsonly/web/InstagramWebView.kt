@@ -161,6 +161,9 @@ fun InstagramWebView(
 
                     if (generation == 0 && initialWebViewState != null) {
                         restoreState(initialWebViewState)
+                        // Re-load under the newly selected Activity theme so
+                        // prefers-color-scheme updates after an appearance change.
+                        post { reload() }
                     } else {
                         loadUrl(InstagramRoutes.DM_INBOX)
                     }

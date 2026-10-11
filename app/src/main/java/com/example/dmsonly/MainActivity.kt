@@ -1,14 +1,21 @@
 package com.example.dmsonly
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
+import android.content.res.Configuration
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -31,6 +38,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,10 +52,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.delay
 import com.example.dmsonly.ui.theme.AppearanceMode
 import com.example.dmsonly.ui.theme.DMsOnlyTheme
 import com.example.dmsonly.web.InstagramBackNavigation
+import com.example.dmsonly.web.InstagramRoutes
 import com.example.dmsonly.web.InstagramWebView
 import com.example.dmsonly.web.clearInstagramSession
 
@@ -61,6 +74,19 @@ class MainActivity : ComponentActivity() {
     private var restoredWebViewState: Bundle? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val storedAppearance = AppearanceMode.fromStoredValue(
+            getSharedPreferences(APPEARANCE_PREFERENCES, MODE_PRIVATE)
+                .getString(APPEARANCE_MODE_KEY, null)
+        )
+        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        setTheme(
+            if (storedAppearance.resolveDarkTheme(systemDark)) {
+                R.style.Theme_DMsOnly_Dark
+            } else {
+                R.style.Theme_DMsOnly
+            }
+        )
         super.onCreate(savedInstanceState)
         restoredWebViewState = savedInstanceState?.getBundle(WEBVIEW_STATE_KEY)
 
@@ -108,6 +134,7 @@ class MainActivity : ComponentActivity() {
                             .edit()
                             .putString(APPEARANCE_MODE_KEY, mode.name)
                             .apply()
+                        recreate()
                     },
                     onWellbeingSettingsChange = { settings ->
                         wellbeingSettings = settings
@@ -146,6 +173,18 @@ private fun DMsOnlyApp(
     var showClearDialog by remember { mutableStateOf(false) }
     var showAppearanceDialog by remember { mutableStateOf(false) }
     var showWellbeingDialog by remember { mutableStateOf(false) }
+    var checkingUpdates by remember { mutableStateOf(false) }
+    var updateCheckMessage by remember { mutableStateOf<String?>(null) }
+    var availableUpdate by remember { mutableStateOf<AvailableUpdate?>(null) }
+    val context = LocalContext.current
+    LaunchedEffect(checkingUpdates) {
+        if (checkingUpdates) {
+            val update = UpdateChecker.check(BuildConfig.VERSION_NAME)
+            availableUpdate = update
+            updateCheckMessage = if (update == null) "You're using the latest version." else null
+            checkingUpdates = false
+        }
+    }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var now by remember { mutableStateOf(WellbeingSettings.currentTime()) }
     LaunchedEffect(wellbeingSettings.quietHoursEnabled, wellbeingSettings.quietHoursStart, wellbeingSettings.quietHoursEnd) {
@@ -161,7 +200,31 @@ private fun DMsOnlyApp(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("DMs Only") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_brand_mark),
+                            contentDescription = null,
+                            modifier = Modifier.size(34.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                "DMs Only",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                "Private messages. Less noise.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {
@@ -178,6 +241,21 @@ private fun DMsOnlyApp(
                                     showMenu = false
                                     errorMessage = null
                                     reloadToken++
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Fix language (English)") },
+                                onClick = {
+                                    showMenu = false
+                                    webView?.loadUrl(InstagramRoutes.DM_INBOX)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Check for updates") },
+                                onClick = {
+                                    showMenu = false
+                                    updateCheckMessage = null
+                                    checkingUpdates = true
                                 }
                             )
                             DropdownMenuItem(
@@ -252,6 +330,49 @@ private fun DMsOnlyApp(
                 }
             }
         }
+    }
+
+    if (checkingUpdates) {
+        AlertDialog(
+            onDismissRequest = { checkingUpdates = false },
+            title = { Text("Checking for updates") },
+            text = { Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Checking the latest official release…")
+            } },
+            confirmButton = {
+                TextButton(onClick = { checkingUpdates = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    availableUpdate?.let { update ->
+        AlertDialog(
+            onDismissRequest = { availableUpdate = null },
+            title = { Text("New version available") },
+            text = { Text("DMs Only ${update.version} is available. Open the official release page to update.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    availableUpdate = null
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
+                }) { Text("Update") }
+            },
+            dismissButton = {
+                TextButton(onClick = { availableUpdate = null }) { Text("Later") }
+            }
+        )
+    }
+
+    updateCheckMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { updateCheckMessage = null },
+            title = { Text("Updates") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { updateCheckMessage = null }) { Text("OK") }
+            }
+        )
     }
 
     if (showAppearanceDialog) {

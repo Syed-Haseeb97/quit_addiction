@@ -8,6 +8,12 @@ import org.junit.Test
 class InstagramRoutesTest {
 
     @Test
+    fun inboxDefaultsToEnglishWithoutBreakingInboxRouteDetection() {
+        assertTrue(InstagramRoutes.DM_INBOX.contains("hl=en"))
+        assertTrue(InstagramRoutes.isInboxUrl(InstagramRoutes.DM_INBOX))
+    }
+
+    @Test
     fun dmRoutesAreAllowed() {
         assertFalse(InstagramRoutes.isBlocked("https://www.instagram.com/direct/inbox/"))
         assertFalse(InstagramRoutes.isBlocked("https://www.instagram.com/direct/t/123/"))

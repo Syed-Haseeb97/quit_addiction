@@ -4,7 +4,7 @@ import android.net.Uri
 import java.net.URI
 
 object InstagramRoutes {
-    const val DM_INBOX = "https://www.instagram.com/direct/inbox/"
+    const val DM_INBOX = "https://www.instagram.com/direct/inbox/?hl=en"
     private const val INSTAGRAM_HOST = "instagram.com"
     private const val WWW_INSTAGRAM_HOST = "www.instagram.com"
 

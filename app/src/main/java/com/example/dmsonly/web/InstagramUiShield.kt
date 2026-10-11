@@ -113,6 +113,13 @@ object InstagramUiShield {
     return path === "/reels" || path.indexOf("/reels/") === 0;
   }
 
+  function isFeedEscapePath(path) {
+    if (path === "/" || path === "") return true;
+    var first = String(path).split("/").filter(function (s) { return s.length > 0; })[0] || "";
+    try { first = decodeURIComponent(first); } catch (e) {}
+    return ["explore", "reels", "feed", "p", "tv"].indexOf(first.toLowerCase()) !== -1;
+  }
+
   function clearDmReelContext() {
     dmReelContextActive = false;
     lastDmReelUrl = null;
@@ -139,7 +146,7 @@ object InstagramUiShield {
         rememberDmReelUrl(target.href);
         return false;
       }
-      if (dmReelContextActive && isGenericReelsPath(target.pathname)) {
+      if (dmReelContextActive && isFeedEscapePath(target.pathname)) {
         returnToDmReel();
         return true;
       }
@@ -163,7 +170,7 @@ object InstagramUiShield {
       rememberDmReelUrl(location.href);
     } else if (dmReelContextActive && isIndividualReelPath(currentPath)) {
       rememberDmReelUrl(location.href);
-    } else if (dmReelContextActive && isGenericReelsPath(currentPath)) {
+    } else if (dmReelContextActive && isFeedEscapePath(currentPath)) {
       returnToDmReel();
       return;
     } else if (dmReelContextActive) {
@@ -217,13 +224,49 @@ object InstagramUiShield {
     }
   }, true);
 
+  // The DM-shared individual Reel is allowed, but vertical gestures must not
+  // turn that entry point into an endless generic Reels feed.
+  var dmReelTouchStart = null;
+  document.addEventListener("touchstart", function (event) {
+    if (!dmReelContextActive || !isIndividualReelPath(location.pathname) ||
+        !event.touches || event.touches.length !== 1) {
+      dmReelTouchStart = null;
+      return;
+    }
+    dmReelTouchStart = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY
+    };
+  }, { capture: true, passive: true });
+
+  document.addEventListener("touchmove", function (event) {
+    if (!dmReelContextActive || !isIndividualReelPath(location.pathname) ||
+        !dmReelTouchStart || !event.touches || event.touches.length !== 1) return;
+    var dx = event.touches[0].clientX - dmReelTouchStart.x;
+    var dy = event.touches[0].clientY - dmReelTouchStart.y;
+    if (Math.abs(dy) < 22 || Math.abs(dy) <= Math.abs(dx)) return;
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  }, { capture: true, passive: false });
+
+  document.addEventListener("touchend", function () {
+    dmReelTouchStart = null;
+  }, true);
+  document.addEventListener("touchcancel", function () {
+    dmReelTouchStart = null;
+  }, true);
+
   window.addEventListener("popstate", applyShield);
   window.addEventListener("hashchange", applyShield);
 
   function guardLocation() {
+    if (dmReelContextActive && isFeedEscapePath(location.pathname)) {
+      returnToDmReel();
+      return;
+    }
     if (!isBlockedUrl(location.href)) return;
-    if (dmReelContextActive && isGenericReelsPath(location.pathname)) returnToDmReel();
-    else goInbox();
+    goInbox();
   }
 
   function installStyle() {

@@ -7,4 +7,14 @@
         <item name="android:navigationBarColor">@android:color/black</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+
+    <style name="Theme.DMsOnly.Dark" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:isLightTheme">false</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#9B8CFF</item>
+        <item name="android:statusBarColor">#14121C</item>
+        <item name="android:navigationBarColor">#14121C</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
 </resources>

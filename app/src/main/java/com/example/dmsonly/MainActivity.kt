@@ -1,6 +1,7 @@
 package com.example.dmsonly
 
 import android.os.Bundle
+import android.content.res.Configuration
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -69,6 +70,19 @@ class MainActivity : ComponentActivity() {
     private var restoredWebViewState: Bundle? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val storedAppearance = AppearanceMode.fromStoredValue(
+            getSharedPreferences(APPEARANCE_PREFERENCES, MODE_PRIVATE)
+                .getString(APPEARANCE_MODE_KEY, null)
+        )
+        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        setTheme(
+            if (storedAppearance.resolveDarkTheme(systemDark)) {
+                R.style.Theme_DMsOnly_Dark
+            } else {
+                R.style.Theme_DMsOnly
+            }
+        )
         super.onCreate(savedInstanceState)
         restoredWebViewState = savedInstanceState?.getBundle(WEBVIEW_STATE_KEY)
 
@@ -116,6 +130,7 @@ class MainActivity : ComponentActivity() {
                             .edit()
                             .putString(APPEARANCE_MODE_KEY, mode.name)
                             .apply()
+                        recreate()
                     },
                     onWellbeingSettingsChange = { settings ->
                         wellbeingSettings = settings

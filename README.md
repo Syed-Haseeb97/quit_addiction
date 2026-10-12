@@ -14,19 +14,10 @@ Social apps can make it easy to open a messaging app and end up scrolling throug
 
 This is a practical experiment, not a clinical tool. It does not measure screen time, diagnose addiction, or guarantee changes in user behavior. The current implementation focuses on routing and interface restrictions within Instagram's website.
 
-## What it does
-
-- Opens Instagram Direct as the app's primary destination.
-- Attempts to redirect navigation to the Feed, Explore, and Reels back to the DM inbox.
-- Uses Instagram's own website sign-in and supported verification flows.
-- Provides refresh and session-clearing controls.
-- Handles loading and retryable page errors, external links, supported file selection, and WebView renderer recovery.
-- Includes unit tests for URL-routing rules and a GitHub Actions build workflow.
-
-
 
 ## Contents
 
+- [The problem and motivation](#the-problem-and-motivation)
 - [Features](#features)
 - [How it works](#how-it-works)
 - [Requirements](#requirements)

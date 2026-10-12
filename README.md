@@ -1,8 +1,29 @@
 # DMs Only
 
-**DMs Only** is a small, personal-use Android app that opens Instagram Direct in an Android WebView and hides/blocks navigation to the Feed, Explore, and Reels.
+**DMs Only** is an Android app built around one simple idea: make Instagram messaging easier to access without making the Feed, Explore, and Reels the default destination.
 
-It uses Instagram's real website and normal Instagram login flow. It is not an official Instagram app.
+The project lives in the `quit_addiction` repository because its broader motivation is to help reduce distraction from highly engaging social-media surfaces. Rather than trying to replace Instagram or claiming to treat addiction, DMs Only experiments with a focused interface that prioritizes Direct Messages and makes common routes to the Feed, Explore, and Reels harder to reach.
+
+It uses Instagram's website inside Android WebView and Instagram's normal sign-in flow. It is an independent project, not an official Instagram or Meta app. Instagram can change its website or restrict WebView sessions, so the navigation restrictions are best-effort rather than a guarantee.
+
+## The problem and motivation
+
+Social apps can make it easy to open a messaging app and end up scrolling through feeds, short videos, or recommendations instead. DMs Only explores a narrower alternative for people who mainly want to check or send messages.
+
+**Project goal:** explore how a small product decision—making the intended task the main destination—can help reduce unnecessary distractions.
+
+This is a practical experiment, not a clinical tool. It does not measure screen time, diagnose addiction, or guarantee changes in user behavior. The current implementation focuses on routing and interface restrictions within Instagram's website.
+
+## What it does
+
+- Opens Instagram Direct as the app's primary destination.
+- Attempts to redirect navigation to the Feed, Explore, and Reels back to the DM inbox.
+- Uses Instagram's own website sign-in and supported verification flows.
+- Provides refresh and session-clearing controls.
+- Handles loading and retryable page errors, external links, supported file selection, and WebView renderer recovery.
+- Includes unit tests for URL-routing rules and a GitHub Actions build workflow.
+
+
 
 ## Contents
 
